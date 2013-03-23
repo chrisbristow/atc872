@@ -1,13 +1,14 @@
 var user = "";
 var channel = "";
 var latest_row = -1;
+var poll_timer = null;
 
 
 
 
 window.addEvent('domready',function()
 {
-  channel = (location.search).replace("?channel=","");
+  channel = decodeURIComponent((location.search).replace("?channel=",""));
   initialise();
 });
 
@@ -15,6 +16,8 @@ window.addEvent('domready',function()
 
 function initialise()
 {
+  clearTimeout(poll_timer);
+
   if(channel.length == 0)
   {
     $("area51").innerHTML = "Error: No channel specified !!";
@@ -25,7 +28,7 @@ function initialise()
 
     if(user == null || user.length == 0)
     {
-      $("area51").innerHTML = "<p class=\"rowtextcss\">Name: <input class=\"usertextinputcss\" type=\"text\" id=\"auser\" onkeyup=\"enter_userid(event);\"></p>";
+      $("area51").innerHTML = "<p class=\"rowtextcss\">Enter your name here: <input class=\"usertextinputcss\" type=\"text\" id=\"auser\" onkeyup=\"enter_userid(event);\"></p>";
     }
     else
     {
@@ -57,7 +60,20 @@ function enter_usertext(event)
     var ajax=new Request({ url: "addrow", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
     ajax.post("channel="+channel+"&user="+user+"&text="+encodeURIComponent($("usertextinput").value)+"&from="+latest_row+"&back=200");
     $("usertextinput").value = "";
+    clearTimeout(poll_timer);
+    poll_timer = setTimeout("do_poll()", 2000);
   }
+}
+
+
+
+
+function do_poll()
+{
+  clearTimeout(poll_timer);
+  var ajax=new Request({ url: "fetchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
+  ajax.post("channel="+channel+"&from="+latest_row+"&back=200");
+  poll_timer = setTimeout("do_poll()", 10000);
 }
 
 
@@ -69,8 +85,7 @@ function init_channel()
   $("area51").innerHTML += "<p><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></p>";
   $("area51").innerHTML += "<p id=\"textlist\"></p>";
 
-  var ajax=new Request({ url: "fetchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
-  ajax.post("channel="+channel+"&from=-1&back=200");
+  do_poll();
 }
 
 
@@ -78,6 +93,7 @@ function init_channel()
 function change_user()
 {
   user = "";
+  latest_row = -1;
   Cookie.write('user', user, { duration: 365 });
   initialise();
 }
@@ -99,11 +115,7 @@ function fetched_rows(responseText)
       var us = obj.rows[i].user;
       var tx = obj.rows[i].text;
 
-      $("textlist").innerHTML = "<p class=\"rowdatecss\">"+tm+" "+us+"</p><p class=\"rowtextcss\">"+tx+"</p>" + $("textlist").innerHTML;
+      $("textlist").innerHTML = "<p class=\"rowdatecss\">"+tm+" "+us+" :</p><p class=\"rowtextcss\">"+tx+"</p>" + $("textlist").innerHTML;
     }
-  }
-  else
-  {
-    $("textlist").innerHTML = "<p class=\"rowdatecss\">*** This is a new channel ***</p>";
   }
 }

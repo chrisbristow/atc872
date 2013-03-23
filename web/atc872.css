@@ -1,26 +1,28 @@
-.navtext
+.channelcss
 {
-  font-family: verdana;
-  font-size: 0.6em;
+  font-family: arial,helvetica;
+  font-size: 16pt;
+  font-weight: bold;
   letter-spacing: 2px;
-  line-height: 170%;
-  padding: 5px;
   color: #888888;
-  text-align: right;
 }
 
-.navtext_b
+.rowdatecss
 {
-  font-family: verdana;
-  font-size: 0.6em;
+  font-family: arial,helvetica;
+  font-size: 10pt;
+  font-style: oblique;
   letter-spacing: 2px;
-  line-height: 170%;
-  padding: 5px;
-  color: #888888;
-  text-align: right;
-  border-right-style: solid;
-  border-right-color: #aaaaaa;
-  border-right-width: 1px;
+  color: #ff8888;
+}
+
+.rowtextcss
+{
+  font-family: arial,helvetica;
+  font-size: 12pt;
+  letter-spacing: 2px;
+  color: #555599;
+  padding-left: 20px;
 }
 
 .maintext
@@ -35,74 +37,17 @@
   color: #888888;
 }
 
-.menutext
+.usertextinputcss
 {
-  font-family: verdana;
-  font-size: 0.8em;
+  width: 1024px;
+  font-family: arial,helvetica;
+  font-size: 10pt;
   letter-spacing: 2px;
-  line-height: 170%;
-  padding: 20px;
-  color: #aaa;
-}
-
-.editbox
-{
-  font-family: verdana;
-  font-size: 0.8em;
-  letter-spacing: 2px;
-  line-height: 170%;
-  padding: 20px;
-  color: #444444;
+  color: #888888;
   background-color: #ffffff;
-  border: 0px solid #000000;
+  border: 1px solid #ff8888;
+  padding: 8px;
   -moz-border-radius: 10px;
   -webkit-border-radius: 10px;
-}
-
-.newpagebox
-{
-  font-family: verdana;
-  font-size: 0.8em;
-  letter-spacing: 2px;
-  padding: 5px;
-  color: #444444;
-  background-color: #ffffff;
-  border: 0px solid #000000;
-  width: 200px;
-  -moz-border-radius: 10px;
-  -webkit-border-radius: 10px;
-}
-
-.errorclass
-{
-  font-family: verdana;
-  font-size: 0.8em;
-  letter-spacing: 2px;
-  padding: 5px;
-  color: #444444;
-}
-
-.boxdef
-{
-  position: absolute;
-  padding: 30px;
-  background-color: #99c;
-  top: 20px;
-  left: 20px;
-  display: none;
-  -moz-border-radius: 10px;
-  -webkit-border-radius: 10px;
-}
-
-.searchboxfield
-{
-  font-family: verdana;
-  font-size: 0.8em;
-  letter-spacing: 2px;
-  padding: 5px;
-  color: #444444;
-  background-color: #ffffff;
-  border: 0px solid #000000;
-  -moz-border-radius: 10px;
-  -webkit-border-radius: 10px;
+  border-radius: 10px;
 }
