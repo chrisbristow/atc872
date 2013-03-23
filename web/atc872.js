@@ -2,6 +2,7 @@ var user = "";
 var channel = "";
 var latest_row = -1;
 var poll_timer = null;
+var poll_interval = 2000;
 
 
 
@@ -28,7 +29,8 @@ function initialise()
 
     if(user == null || user.length == 0)
     {
-      $("area51").innerHTML = "<p class=\"rowtextcss\">Enter your name here: <input class=\"usertextinputcss\" type=\"text\" id=\"auser\" onkeyup=\"enter_userid(event);\"></p>";
+      $("area51").innerHTML  = "<p class=\"rowdatecss\">Enter your name here:</p>";
+      $("area51").innerHTML += "<p><input class=\"usertextinputcss\" type=\"text\" id=\"auser\" onkeyup=\"enter_userid(event);\"></p>";
     }
     else
     {
@@ -42,7 +44,7 @@ function initialise()
 
 function enter_userid(event)
 {
-  if(event.keyCode == 13)
+  if(event.keyCode == 13 && $("auser").value.length > 1)
   {
     user = $("auser").value;
     Cookie.write('user', user, { duration: 365 });
@@ -52,16 +54,26 @@ function enter_userid(event)
 
 
 
+function enter_search(event)
+{
+  if(event.keyCode == 13 && $("asearch").value.length > 1)
+  {
+    init_channel();
+  }
+}
+
+
+
 
 function enter_usertext(event)
 {
-  if(event.keyCode == 13)
+  if(event.keyCode == 13 && $("usertextinput").value.length > 0)
   {
     var ajax=new Request({ url: "addrow", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
     ajax.post("channel="+channel+"&user="+user+"&text="+encodeURIComponent($("usertextinput").value)+"&from="+latest_row+"&back=200");
     $("usertextinput").value = "";
     clearTimeout(poll_timer);
-    poll_timer = setTimeout("do_poll()", 2000);
+    poll_timer = setTimeout("do_poll()", poll_interval);
   }
 }
 
@@ -72,8 +84,8 @@ function do_poll()
 {
   clearTimeout(poll_timer);
   var ajax=new Request({ url: "fetchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
-  ajax.post("channel="+channel+"&from="+latest_row+"&back=200");
-  poll_timer = setTimeout("do_poll()", 10000);
+  ajax.post("channel="+channel+"&user="+user+"&from="+latest_row+"&back=200");
+  poll_timer = setTimeout("do_poll()", poll_interval);
 }
 
 
@@ -81,11 +93,25 @@ function do_poll()
 
 function init_channel()
 {
-  $("area51").innerHTML  = "<p class=\"channelcss\">"+channel+" (<a href=\"#\" onmouseup=\"change_user();\">"+user+"</a>)</p>";
+  latest_row = -1;
+
+  $("area51").innerHTML  = "<p class=\"rowdatecss\">"+user+" - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></p>";
+  $("area51").innerHTML += "<p class=\"channelcss\">"+channel+"</p>";
   $("area51").innerHTML += "<p><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></p>";
   $("area51").innerHTML += "<p id=\"textlist\"></p>";
 
   do_poll();
+}
+
+
+
+function go_to_search()
+{
+  clearTimeout(poll_timer);
+
+  $("area51").innerHTML  = "<p class=\"rowdatecss\">Search for:</p>";
+  $("area51").innerHTML += "<p><input class=\"usertextinputcss\" type=\"text\" id=\"asearch\" onkeyup=\"enter_search(event);\"></p>";
+  $("area51").innerHTML += "<p><a class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></p>";
 }
 
 

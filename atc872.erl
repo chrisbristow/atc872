@@ -1,5 +1,5 @@
 -module(atc872).
--export([start/1, add_row/7, fetch_rows/4]).
+-export([start/1, add_row/7, fetch_rows/5]).
 
 
 
@@ -90,9 +90,9 @@ handle('POST', ["addrow"], Req) ->
   row_renderer(RowData, Req)
   ;
 handle('POST', ["fetchrows"], Req) ->
-  [{ "channel", Channel }, { "from", LastRow }, { "back", RowsBack }] = Req:parse_post(),
+  [{ "channel", Channel }, { "user", User }, { "from", LastRow }, { "back", RowsBack }] = Req:parse_post(),
   { Node, _ } = get_node_info(),
-  RowData = fetch_rows(Node, Channel, list_to_integer(LastRow), list_to_integer(RowsBack)),
+  RowData = fetch_rows(Node, Channel, User, list_to_integer(LastRow), list_to_integer(RowsBack)),
   row_renderer(RowData, Req)
   ;
 handle('GET', [Static], Req) ->
@@ -177,9 +177,16 @@ get_rows(Node, Channel, LastRow, RowsBack) ->
 
 
 
-fetch_rows(Node, Channel, LastRow, RowsBack) ->
-  error_logger:info_msg("Fetching rows from ~p (node: ~p, from: ~p, back: ~p)~n", [ Channel, Node, LastRow, RowsBack ]),
+fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
+  error_logger:info_msg("Fetching rows for ~p from ~p (node: ~p, from: ~p, back: ~p)~n", [ User, Channel, Node, LastRow, RowsBack ]),
   Transaction=fun() ->
+    case mnesia:read({ rows, users }) of
+      [{ _, _, CurrentUserList }] ->
+        mnesia:write({ rows, users, lists:keystore(User, 1, CurrentUserList, { User, now() }) })
+        ;
+      [] ->
+        mnesia:write({ rows, users, [{ User, now() }] })
+    end,
     get_rows(Node, Channel, LastRow, RowsBack)
   end,
   case mnesia:transaction(Transaction) of
