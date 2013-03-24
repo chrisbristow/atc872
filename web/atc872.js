@@ -58,7 +58,8 @@ function enter_search(event)
 {
   if(event.keyCode == 13 && $("asearch").value.length > 1)
   {
-    init_channel();
+    var ajax=new Request({ url: "searchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
+    ajax.post("channel="+channel+"&back=200&pattern="+$("asearch").value);
   }
 }
 
@@ -112,6 +113,7 @@ function go_to_search()
   $("area51").innerHTML  = "<p class=\"rowdatecss\">Search for:</p>";
   $("area51").innerHTML += "<p><input class=\"usertextinputcss\" type=\"text\" id=\"asearch\" onkeyup=\"enter_search(event);\"></p>";
   $("area51").innerHTML += "<p><a class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></p>";
+  $("area51").innerHTML += "<p id=\"textlist\"></p>";
 }
 
 

@@ -1,5 +1,5 @@
 -module(atc872).
--export([start/1, add_row/7, fetch_rows/5]).
+-export([start/1, add_row/7, fetch_rows/5, search_rows/4]).
 
 
 
@@ -48,6 +48,7 @@ handle_http(Req) ->
 
 
 row_renderer(RowData, Req) ->
+% error_logger:info_msg("ROW_R DEBUG: ~p~n", [ RowData ]),
   case RowData of
     { LatestRow, no_rows } ->
       Req:ok("{ \"status\": \"no_rows\"," ++
@@ -93,6 +94,12 @@ handle('POST', ["fetchrows"], Req) ->
   [{ "channel", Channel }, { "user", User }, { "from", LastRow }, { "back", RowsBack }] = Req:parse_post(),
   { Node, _ } = get_node_info(),
   RowData = fetch_rows(Node, Channel, User, list_to_integer(LastRow), list_to_integer(RowsBack)),
+  row_renderer(RowData, Req)
+  ;
+handle('POST', ["searchrows"], Req) ->
+  [{ "channel", Channel }, { "back", RowsBack }, { "pattern", Pattern }] = Req:parse_post(),
+  { Node, _ } = get_node_info(),
+  RowData = search_rows(Node, Channel, list_to_integer(RowsBack), Pattern),
   row_renderer(RowData, Req)
   ;
 handle('GET', [Static], Req) ->
@@ -177,6 +184,33 @@ get_rows(Node, Channel, LastRow, RowsBack) ->
 
 
 
+get_search_results(Node, Channel, RowsBack, SearchString) ->
+  case mnesia:read({ rows, { last, Channel, Node } }) of
+    [ { _, _, Last } ] ->
+      ResultSet = lists:foldl(fun(E, A) ->
+        [ { _, _, { Now, User, Text } } ] = mnesia:read({ rows, { Node, Channel, E } }),
+        M1 = case re:run(User, SearchString, [{ capture, none }, caseless]) of
+          match ->
+            [{ Now, User, Text }]
+            ;
+          _ ->
+            case re:run(Text, SearchString, [{ capture, none }, caseless]) of
+              match ->
+                [{ Now, User, Text }]
+                ;
+              _ -> []
+            end
+        end,
+        M1 ++ A
+      end, [], lists:sublist(lists:seq(Last, 0, -1), RowsBack)),
+      { -1, ResultSet }
+      ;
+    [] -> no_such_channel
+  end.
+
+
+
+
 fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
   error_logger:info_msg("Fetching rows for ~p from ~p (node: ~p, from: ~p, back: ~p)~n", [ User, Channel, Node, LastRow, RowsBack ]),
   Transaction=fun() ->
@@ -192,6 +226,22 @@ fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
       error_logger:warning_msg("Fetch rows failed: ~p~n", [Reason]),
+      error
+      ;
+    { atomic, Rval } ->
+      Rval
+  end.
+
+
+
+search_rows(Node, Channel, RowsBack, SearchString) ->
+  error_logger:info_msg("Searching for ~p from ~p (node: ~p, back: ~p)~n", [ SearchString, Channel, Node, RowsBack ]),
+  Transaction=fun() ->
+    get_search_results(Node, Channel, RowsBack, SearchString)
+  end,
+  case mnesia:transaction(Transaction) of
+    { aborted, Reason } ->
+      error_logger:warning_msg("Search rows failed: ~p~n", [Reason]),
       error
       ;
     { atomic, Rval } ->
