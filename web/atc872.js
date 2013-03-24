@@ -79,7 +79,7 @@ function initialise()
 
 function enter_userid(event)
 {
-  if(event.keyCode == 13 && $("auser").value.length > 1)
+  if(event.keyCode == 13 && $("auser").value.length > 1 && /\S+/.test($("auser").value))
   {
     user = $("auser").value;
     Cookie.write('user', user, { duration: 365 });
@@ -91,8 +91,9 @@ function enter_userid(event)
 
 function enter_search(event)
 {
-  if(event.keyCode == 13 && $("asearch").value.length > 1)
+  if(event.keyCode == 13 && $("asearch").value.length > 1 && /\S+/.test($("asearch").value))
   {
+    $("textlist").innerHTML = "";
     var ajax=new Request({ url: "searchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
     ajax.post("channel="+channel+"&back="+max_extent+"&pattern="+$("asearch").value);
   }
@@ -103,7 +104,7 @@ function enter_search(event)
 
 function enter_usertext(event)
 {
-  if(event.keyCode == 13 && $("usertextinput").value.length > 0)
+  if(event.keyCode == 13 && $("usertextinput").value.length > 0 && /\S+/.test($("usertextinput").value))
   {
     var ajax=new Request({ url: "addrow", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
     ajax.post("channel="+channel+"&user="+user+"&text="+encodeURIComponent($("usertextinput").value)+"&from="+latest_row+"&back="+max_extent);

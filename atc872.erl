@@ -61,7 +61,7 @@ row_renderer(RowData, Req) ->
                            0 -> "";
                            _ -> "," ++[10]
                          end,
-                         A ++ Pfx ++ "    { \"time\": \"" ++ pad(integer_to_list(Hr)) ++ ":" ++ pad(integer_to_list(Mi)) ++ " " ++ pad(integer_to_list(Dy)) ++ "-" ++ pad(integer_to_list(Mo)) ++ "-" ++ integer_to_list(Yr) ++ "\", \"user\": \"" ++User++ "\", \"text\": \"" ++Text++ "\" }"
+                         A ++ Pfx ++ "    { \"time\": \"" ++ pad(integer_to_list(Hr)) ++ ":" ++ pad(integer_to_list(Mi)) ++ " " ++ pad(integer_to_list(Dy)) ++ "-" ++ pad(integer_to_list(Mo)) ++ "-" ++ integer_to_list(Yr) ++ "\", \"user\": \"" ++quote_handler(User)++ "\", \"text\": \"" ++quote_handler(Text)++ "\" }"
                          end, [], RowList),
       Req:ok("{ \"status\": \"ok\"," ++ [10] ++
              "  \"latest\": " ++integer_to_list(LatestRow) ++ "," ++[10]++
@@ -77,6 +77,12 @@ row_renderer(RowData, Req) ->
     error ->
       Req:ok("{ \"status\": \"error\" }")
   end.
+
+
+
+quote_handler(Str) ->
+  Filter1 = re:replace(Str, "[\\x00-\\x1f\\x5c]+", "", [{ return, list }, global ]),
+  re:replace(Filter1, "\"", "\\\\\"", [{ return, list }, global ]).
 
 
 
@@ -126,9 +132,7 @@ get_node_info() ->
 
 
 
-add_row(Nodes, Channel, User, OrText, Node, LastRow, RowsBack) ->
-  Text1 = re:replace(OrText, "[\\x00-\\x1f\\x5c]+", "", [{ return, list }, global ]),
-  Text = re:replace(Text1, "\"", "\\\\\"", [{ return, list }, global ]),
+add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack) ->
   error_logger:info_msg("Adding row to ~p from ~p: ~p (node: ~p, nodes: ~p, from: ~p, back: ~p)~n", [ Channel, User, Text, Node, Nodes, LastRow, RowsBack ]),
   Transaction=fun() ->
     lists:foreach(fun(I) ->
