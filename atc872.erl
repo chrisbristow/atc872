@@ -1,5 +1,5 @@
 -module(atc872).
--export([start/1, add_row/7, fetch_rows/5, search_rows/4]).
+-export([start/1, add_row/7, add_row/8, fetch_rows/5, search_rows/4]).
 
 
 
@@ -132,26 +132,30 @@ get_node_info() ->
 
 
 
+
 add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack) ->
+  add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, now()).
+
+add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, Now) ->
   error_logger:info_msg("Adding row to ~p from ~p: ~p (node: ~p, nodes: ~p, from: ~p, back: ~p)~n", [ Channel, User, Text, Node, Nodes, LastRow, RowsBack ]),
   Transaction=fun() ->
     lists:foreach(fun(I) ->
       case mnesia:read({ rows, { last, Channel, I } }) of
         [ { _, _, L } ] ->
           mnesia:write({ rows, { last, Channel, I }, L + 1 }),
-          mnesia:write({ rows, { I, Channel, L + 1 }, { now(), User, Text } })
+          mnesia:write({ rows, { I, Channel, L + 1 }, { Now, User, Text } })
           ;
         [] ->
           mnesia:write({ rows, { first, Channel, I }, 0 }),
           mnesia:write({ rows, { last, Channel, I }, 0 }),
-          mnesia:write({ rows, { I, Channel, 0 }, { now(), User, Text } })
+          mnesia:write({ rows, { I, Channel, 0 }, { Now, User, Text } })
       end,
       case mnesia:read({ rows, { updated, I } }) of
         [ { _, _, UpdateList } ] ->
-          mnesia:write({ rows, { updated, I }, lists:keystore(Channel, 1, UpdateList, { Channel, now() }) })
+          mnesia:write({ rows, { updated, I }, lists:keystore(Channel, 1, UpdateList, { Channel, Now }) })
           ;
         [] ->
-          mnesia:write({ rows, { updated, I }, lists:keystore(Channel, 1, [], { Channel, now() }) })
+          mnesia:write({ rows, { updated, I }, lists:keystore(Channel, 1, [], { Channel, Now }) })
       end
     end,lists:seq(0, Nodes - 1)),
     get_rows(Node, Channel, LastRow, RowsBack)
@@ -164,6 +168,7 @@ add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack) ->
     { atomic, Rval } ->
       Rval
   end.
+
 
 
 
