@@ -1,7 +1,45 @@
+% atc872.erl
+%
+% Server for the ATC872 low-maintenance online chat forum service.
+
+% Copyright (c) 2013, Chris Bristow
+% All rights reserved.
+% 
+% Redistribution and use in source and binary forms, with or without
+% modification, are permitted provided that the following conditions are met: 
+% 
+% 1. Redistributions of source code must retain the above copyright notice, this
+%    list of conditions and the following disclaimer. 
+% 2. Redistributions in binary form must reproduce the above copyright notice,
+%    this list of conditions and the following disclaimer in the documentation
+%    and/or other materials provided with the distribution. 
+% 
+% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+% ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+% WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+% DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+% ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+% (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+% LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+% ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+% (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+% SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+% 
+% The views and conclusions contained in the software and documentation are those
+% of the authors and should not be interpreted as representing official policies, 
+% either expressed or implied, of the FreeBSD Project.
+
+
 -module(atc872).
 -export([start/1, add_row/7, add_row/8, fetch_rows/5, search_rows/4]).
 
 
+
+% Start hook.  Takes arguments:
+% - TCP port for the web server.
+% - Node ID number.
+% - Number of nodes in the cluster.
+% Initialises Mnesia and starts the Misultin web server.
 
 start([ Port, Node, Nodes ]) ->
   error_logger:info_msg("Starting node: ~s (total nodes: ~s)~n", [ Node, Nodes ]),
@@ -28,6 +66,8 @@ start([ Port, Node, Nodes ]) ->
 
 
 
+% Daemon process that returns the current node ID and number of
+% nodes in the cluster on receipt of a message.
 
 loop(Node, Nodes) ->
   receive
@@ -41,11 +81,18 @@ loop(Node, Nodes) ->
 
 
 
+
+% Directs Misultin HTTP requests to a group of "handle()" functions which
+% provide a REST-ful interface to the server.
+
 handle_http(Req) ->
   handle(Req:get(method), Req:resource([lowercase, urldecode]), Req).
 
 
 
+
+% Takes a list of rows and a Misultin request reference, then renders the
+% rows as a JSON document.
 
 row_renderer(RowData, Req) ->
 % error_logger:info_msg("ROW_R DEBUG: ~p~n", [ RowData ]),
@@ -80,12 +127,16 @@ row_renderer(RowData, Req) ->
 
 
 
+
+% Removes un-printable characters from a string.
+
 quote_handler(Str) ->
   Filter1 = re:replace(Str, "[\\x00-\\x1f\\x5c]+", "", [{ return, list }, global ]),
   re:replace(Filter1, "\"", "\\\\\"", [{ return, list }, global ]).
 
 
 
+% REST-ful interface to the web server.
 
 handle('GET', [], Req) ->
   Req:file("web/atc872.html")
@@ -113,6 +164,9 @@ handle('GET', [Static], Req) ->
 
 
 
+
+% Prefixes a single digit with a "0", ie. "1" becomes "01" and "11" is left as-is.
+
 pad(Str) ->
   case length(Str) of
     1 -> "0" ++ Str;
@@ -121,6 +175,7 @@ pad(Str) ->
 
 
 
+% Get the node ID and number of nodes from the "main" loop daemon.
 
 get_node_info() ->
   main ! { nodeinfo, self() },
@@ -132,6 +187,9 @@ get_node_info() ->
 
 
 
+% Add a row to the database and return all new rows (including the row added).
+% The function containing the argument "Now" allows the row to be given a specific date, otherwise
+% the current date/time is used.
 
 add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack) ->
   add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, now()).
@@ -172,6 +230,7 @@ add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, Now) ->
 
 
 
+% Return all rows added after the given row ID ("LastRow").
 
 get_rows(Node, Channel, LastRow, RowsBack) ->
   case mnesia:read({ rows, { last, Channel, Node } }) of
@@ -192,6 +251,8 @@ get_rows(Node, Channel, LastRow, RowsBack) ->
 
 
 
+% Search for a specific string in the Text and User parts the last N rows
+% of a given channel.
 
 get_search_results(Node, Channel, RowsBack, SearchString) ->
   case mnesia:read({ rows, { last, Channel, Node } }) of
@@ -220,6 +281,8 @@ get_search_results(Node, Channel, RowsBack, SearchString) ->
 
 
 
+% Return the last N rows after the specified row ID on a given channel.
+
 fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
   error_logger:info_msg("Fetching rows for ~p from ~p (node: ~p, from: ~p, back: ~p)~n", [ User, Channel, Node, LastRow, RowsBack ]),
   Transaction=fun() ->
@@ -242,6 +305,8 @@ fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
   end.
 
 
+
+% Transactional wrapper for conducting a channel search.
 
 search_rows(Node, Channel, RowsBack, SearchString) ->
   error_logger:info_msg("Searching for ~p from ~p (node: ~p, back: ~p)~n", [ SearchString, Channel, Node, RowsBack ]),

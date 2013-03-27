@@ -31,24 +31,39 @@
 
 
 
+// Globals.
 
 var user = "";
 var channel = "";
 var latest_row = -1;
 var poll_timer = null;
-var poll_interval = 2000;
+var short_poll_interval = 2000;
+var long_poll_interval = 10000;
+var poll_interval = long_poll_interval;
+var poll_acc = 0;
+var poll_acc_ticks = 15;
 var max_extent = 200;
 
 
 
 
-window.addEvent('domready',function()
+
+// This runs when the page has fully loaded.  The channel is collected from
+// the URL and control passed to the initialisation function.
+
+window.addEvent('domready', function()
 {
-  channel = decodeURIComponent((location.search).replace("?channel=",""));
+  channel = decodeURIComponent((location.search).replace("?channel=", ""));
   initialise();
 });
 
 
+
+
+
+// If there is a "user" cookie set, jump straight into the channel, otherwise prompt
+// for a username.  Also, displays an error if the page is loaded without a channel
+// specified.
 
 function initialise()
 {
@@ -77,9 +92,11 @@ function initialise()
 
 
 
+// Verify that the user name entered conforms, then jump to the channel view.
+
 function enter_userid(event)
 {
-  if(event.keyCode == 13 && $("auser").value.length > 1 && /\S+/.test($("auser").value))
+  if(event.keyCode == 13 && $("auser").value.length > 1 && && $("auser").value.length < 100 && /\S+/.test($("auser").value))
   {
     user = $("auser").value;
     Cookie.write('user', user, { duration: 365 });
@@ -88,6 +105,9 @@ function enter_userid(event)
 }
 
 
+
+
+// Verify that an entered search term is valid, then post a search request to the server.
 
 function enter_search(event)
 {
@@ -102,6 +122,8 @@ function enter_search(event)
 
 
 
+// Verify that a text line is valid, post it to the server and re-start polling (at the fast rate).
+
 function enter_usertext(event)
 {
   if(event.keyCode == 13 && $("usertextinput").value.length > 0 && /\S+/.test($("usertextinput").value))
@@ -109,6 +131,8 @@ function enter_usertext(event)
     var ajax=new Request({ url: "addrow", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
     ajax.post("channel="+channel+"&user="+user+"&text="+encodeURIComponent($("usertextinput").value)+"&from="+latest_row+"&back="+max_extent);
     $("usertextinput").value = "";
+    poll_interval = short_poll_interval;
+    poll_acc = poll_acc_ticks;
     clearTimeout(poll_timer);
     poll_timer = setTimeout("do_poll()", poll_interval);
   }
@@ -117,16 +141,32 @@ function enter_usertext(event)
 
 
 
+// Post check-for-update request to the server.  Switch to the slow polling rate if there has been
+// no user input recently.
+
 function do_poll()
 {
   clearTimeout(poll_timer);
   var ajax=new Request({ url: "fetchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
   ajax.post("channel="+channel+"&user="+user+"&from="+latest_row+"&back="+max_extent);
+
+  if(poll_acc > 0)
+  {
+    poll_interval = short_poll_interval;
+    poll_acc --;
+  }
+  else
+  {
+    poll_interval = long_poll_interval;
+  }
+
   poll_timer = setTimeout("do_poll()", poll_interval);
 }
 
 
 
+
+// Render the channel view page structure and initiate polling.
 
 function init_channel()
 {
@@ -142,6 +182,9 @@ function init_channel()
 
 
 
+
+// Render the search page and prompt for a search term.
+
 function go_to_search()
 {
   clearTimeout(poll_timer);
@@ -154,6 +197,9 @@ function go_to_search()
 
 
 
+
+// Update the "user" cookie and re-initialise with a new user name after switching user.
+
 function change_user()
 {
   user = "";
@@ -164,6 +210,8 @@ function change_user()
 
 
 
+
+// Render the channel text event list, or search result list.
 
 function fetched_rows(responseText)
 {
