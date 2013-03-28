@@ -43,6 +43,7 @@ var poll_interval = long_poll_interval;
 var poll_acc = 0;
 var poll_acc_ticks = 15;
 var max_extent = 200;
+var highlight = false
 
 
 
@@ -96,7 +97,7 @@ function initialise()
 
 function enter_userid(event)
 {
-  if(event.keyCode == 13 && $("auser").value.length > 1 && && $("auser").value.length < 100 && /\S+/.test($("auser").value))
+  if(event.keyCode == 13 && $("auser").value.length > 1 && $("auser").value.length < 100 && /\S+/.test($("auser").value))
   {
     user = $("auser").value;
     Cookie.write('user', user, { duration: 365 });
@@ -114,6 +115,8 @@ function enter_search(event)
   if(event.keyCode == 13 && $("asearch").value.length > 1 && /\S+/.test($("asearch").value))
   {
     $("textlist").innerHTML = "";
+    highlight = false;
+
     var ajax=new Request({ url: "searchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
     ajax.post("channel="+channel+"&back="+max_extent+"&pattern="+$("asearch").value);
   }
@@ -130,6 +133,7 @@ function enter_usertext(event)
   {
     var ajax=new Request({ url: "addrow", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
     ajax.post("channel="+channel+"&user="+user+"&text="+encodeURIComponent($("usertextinput").value)+"&from="+latest_row+"&back="+max_extent);
+
     $("usertextinput").value = "";
     poll_interval = short_poll_interval;
     poll_acc = poll_acc_ticks;
@@ -146,7 +150,9 @@ function enter_usertext(event)
 
 function do_poll()
 {
+  document.title = channel;
   clearTimeout(poll_timer);
+
   var ajax=new Request({ url: "fetchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
   ajax.post("channel="+channel+"&user="+user+"&from="+latest_row+"&back="+max_extent);
 
@@ -171,6 +177,8 @@ function do_poll()
 function init_channel()
 {
   latest_row = -1;
+  document.title = channel;
+  highlight = true;
 
   $("area51").innerHTML  = "<p class=\"rowdatecss\">"+user+" - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></p>";
   $("area51").innerHTML += "<p class=\"channelcss\">"+channel+"</p>";
@@ -219,6 +227,11 @@ function fetched_rows(responseText)
 
   if(obj.status == "ok")
   {
+    if(highlight && latest_row != obj.latest && latest_row > -1)
+    {
+      document.title = "********";
+    }
+
     latest_row = obj.latest;
 
     for(var i = 0; i < obj.rows.length; i ++)

@@ -30,8 +30,11 @@
 % either expressed or implied, of the FreeBSD Project.
 
 
+
+
 -module(atc872).
 -export([start/1, add_row/7, add_row/8, fetch_rows/5, search_rows/4]).
+
 
 
 
@@ -66,6 +69,7 @@ start([ Port, Node, Nodes ]) ->
 
 
 
+
 % Daemon process that returns the current node ID and number of
 % nodes in the cluster on receipt of a message.
 
@@ -95,7 +99,6 @@ handle_http(Req) ->
 % rows as a JSON document.
 
 row_renderer(RowData, Req) ->
-% error_logger:info_msg("ROW_R DEBUG: ~p~n", [ RowData ]),
   case RowData of
     { LatestRow, no_rows } ->
       Req:ok("{ \"status\": \"no_rows\"," ++
@@ -123,6 +126,9 @@ row_renderer(RowData, Req) ->
       ;
     error ->
       Req:ok("{ \"status\": \"error\" }")
+      ;
+    Else ->
+      error_logger:warning_msg("Warning: Row data returned: ~p~n", [ Else ])
   end.
 
 
@@ -133,6 +139,7 @@ row_renderer(RowData, Req) ->
 quote_handler(Str) ->
   Filter1 = re:replace(Str, "[\\x00-\\x1f\\x5c]+", "", [{ return, list }, global ]),
   re:replace(Filter1, "\"", "\\\\\"", [{ return, list }, global ]).
+
 
 
 
@@ -251,6 +258,7 @@ get_rows(Node, Channel, LastRow, RowsBack) ->
 
 
 
+
 % Search for a specific string in the Text and User parts the last N rows
 % of a given channel.
 
@@ -272,8 +280,8 @@ get_search_results(Node, Channel, RowsBack, SearchString) ->
             end
         end,
         M1 ++ A
-      end, [], lists:sublist(lists:seq(Last, 0, -1), RowsBack)),
-      { -1, ResultSet }
+      end, [], lists:seq(Last, 0, -1)),
+      { -1, lists:sublist(ResultSet, RowsBack) }
       ;
     [] -> no_such_channel
   end.
@@ -303,6 +311,7 @@ fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
     { atomic, Rval } ->
       Rval
   end.
+
 
 
 
