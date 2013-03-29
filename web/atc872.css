@@ -1,10 +1,10 @@
 .channelcss
 {
   font-family: arial,helvetica;
-  font-size: 16pt;
+  font-size: 12pt;
   font-weight: bold;
   letter-spacing: 2px;
-  color: #888888;
+  color: #555599;
 }
 
 .rowdatecss
@@ -13,13 +13,13 @@
   font-size: 10pt;
   font-style: oblique;
   letter-spacing: 2px;
-  color: #ff8888;
+  color: #ff6666;
 }
 
 .rowtextcss
 {
   font-family: arial,helvetica;
-  font-size: 12pt;
+  font-size: 10pt;
   letter-spacing: 2px;
   color: #555599;
   padding-left: 20px;
@@ -45,7 +45,7 @@
   letter-spacing: 2px;
   color: #888888;
   background-color: #ffffff;
-  border: 1px solid #ff8888;
+  border: 1px solid #ff6666;
   padding: 8px;
   -moz-border-radius: 10px;
   -webkit-border-radius: 10px;

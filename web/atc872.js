@@ -33,6 +33,7 @@
 
 // Globals.
 
+var max_extent = 200;
 var user = "";
 var channel = "";
 var latest_row = -1;
@@ -42,8 +43,9 @@ var long_poll_interval = 10000;
 var poll_interval = long_poll_interval;
 var poll_acc = 0;
 var poll_acc_ticks = 15;
-var max_extent = 200;
-var highlight = false
+var flash_timer = null;
+var flash_interval = 500;
+var flash_ticks = 0;
 
 
 
@@ -115,7 +117,6 @@ function enter_search(event)
   if(event.keyCode == 13 && $("asearch").value.length > 1 && /\S+/.test($("asearch").value))
   {
     $("textlist").innerHTML = "";
-    highlight = false;
 
     var ajax=new Request({ url: "searchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
     ajax.post("channel="+channel+"&back="+max_extent+"&pattern="+$("asearch").value);
@@ -150,7 +151,6 @@ function enter_usertext(event)
 
 function do_poll()
 {
-  document.title = channel;
   clearTimeout(poll_timer);
 
   var ajax=new Request({ url: "fetchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
@@ -171,6 +171,26 @@ function do_poll()
 
 
 
+// Flash the title bar to indicate that an update has arrived.
+
+function do_flash()
+{
+  clearTimeout(flash_timer);
+
+  if(flash_ticks > 0)
+  {
+    document.title = document.title == channel ? "**********" : channel;
+    flash_timer = setTimeout("do_flash()", flash_interval);
+    flash_ticks --;
+  }
+  else
+  {
+    document.title == channel;
+  }
+}
+
+
+
 
 // Render the channel view page structure and initiate polling.
 
@@ -178,11 +198,11 @@ function init_channel()
 {
   latest_row = -1;
   document.title = channel;
-  highlight = true;
 
-  $("area51").innerHTML  = "<div class=\"rowdatecss\">"+user+" - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></div>";
-  $("area51").innerHTML += "<div class=\"channelcss\">"+channel+"</div>";
+  $("area51").innerHTML  = "<div class=\"channelcss\">"+channel+"</div><br>";
+  $("area51").innerHTML += "<div class=\"rowdatecss\">"+user+" says:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></div>";
+  $("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></div>";
   $("area51").innerHTML += "<div id=\"textlist\"></div>";
 
   do_poll();
@@ -227,10 +247,11 @@ function fetched_rows(responseText)
 
   if(obj.status == "ok")
   {
-    if(highlight && latest_row != obj.latest && latest_row > -1)
-    {
-      document.title = "********";
-    }
+   if(latest_row != obj.latest && latest_row > -1 && poll_interval == long_poll_interval)
+   {
+     flash_ticks = 16;
+     do_flash();
+   }
 
     latest_row = obj.latest;
 
@@ -240,7 +261,7 @@ function fetched_rows(responseText)
       var us = obj.rows[i].user;
       var tx = obj.rows[i].text;
 
-      $("textlist").innerHTML = "<br><div class=\"rowdatecss\">"+tm+" "+us+" :</div><div class=\"rowtextcss\">"+tx+"</div>" + $("textlist").innerHTML;
+      $("textlist").innerHTML = "<br><div class=\"rowdatecss\">"+tm+" "+us+":</div><div class=\"rowtextcss\">"+tx+"</div>" + $("textlist").innerHTML;
     }
   }
 }
