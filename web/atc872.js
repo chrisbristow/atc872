@@ -80,8 +80,8 @@ function initialise()
 
     if(user == null || user.length == 0)
     {
-      $("area51").innerHTML  = "<p class=\"rowdatecss\">Enter your name here:</p>";
-      $("area51").innerHTML += "<p><input class=\"usertextinputcss\" type=\"text\" id=\"auser\" onkeyup=\"enter_userid(event);\"></p>";
+      $("area51").innerHTML  = "<div class=\"rowdatecss\">Enter your name here:</div>";
+      $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"auser\" onkeyup=\"enter_userid(event);\"></div>";
     }
     else
     {
@@ -180,10 +180,10 @@ function init_channel()
   document.title = channel;
   highlight = true;
 
-  $("area51").innerHTML  = "<p class=\"rowdatecss\">"+user+" - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></p>";
-  $("area51").innerHTML += "<p class=\"channelcss\">"+channel+"</p>";
-  $("area51").innerHTML += "<p><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></p>";
-  $("area51").innerHTML += "<p id=\"textlist\"></p>";
+  $("area51").innerHTML  = "<div class=\"rowdatecss\">"+user+" - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></div>";
+  $("area51").innerHTML += "<div class=\"channelcss\">"+channel+"</div>";
+  $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></div>";
+  $("area51").innerHTML += "<div id=\"textlist\"></div>";
 
   do_poll();
 }
@@ -197,10 +197,10 @@ function go_to_search()
 {
   clearTimeout(poll_timer);
 
-  $("area51").innerHTML  = "<p class=\"rowdatecss\">Search in \""+channel+"\" for:</p>";
-  $("area51").innerHTML += "<p><input class=\"usertextinputcss\" type=\"text\" id=\"asearch\" onkeyup=\"enter_search(event);\"></p>";
-  $("area51").innerHTML += "<p><a class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></p>";
-  $("area51").innerHTML += "<p id=\"textlist\"></p>";
+  $("area51").innerHTML  = "<div class=\"rowdatecss\">Search in \""+channel+"\" for:</div>";
+  $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"asearch\" onkeyup=\"enter_search(event);\"></div>";
+  $("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
+  $("area51").innerHTML += "<div id=\"textlist\"></div>";
 }
 
 
@@ -240,7 +240,7 @@ function fetched_rows(responseText)
       var us = obj.rows[i].user;
       var tx = obj.rows[i].text;
 
-      $("textlist").innerHTML = "<p class=\"rowdatecss\">"+tm+" "+us+" :</p><p class=\"rowtextcss\">"+tx+"</p>" + $("textlist").innerHTML;
+      $("textlist").innerHTML = "<br><div class=\"rowdatecss\">"+tm+" "+us+" :</div><div class=\"rowtextcss\">"+tx+"</div>" + $("textlist").innerHTML;
     }
   }
 }
