@@ -42,10 +42,12 @@ var short_poll_interval = 2000;
 var long_poll_interval = 10000;
 var poll_interval = long_poll_interval;
 var poll_acc = 0;
-var poll_acc_ticks = 15;
+var poll_acc_ticks = 30;
 var flash_timer = null;
 var flash_interval = 500;
 var flash_ticks = 0;
+var flash_wait = 10000;
+var last_entry = 0;
 
 
 
@@ -138,6 +140,7 @@ function enter_usertext(event)
     $("usertextinput").value = "";
     poll_interval = short_poll_interval;
     poll_acc = poll_acc_ticks;
+    last_entry = (new Date()).getTime();
     clearTimeout(poll_timer);
     poll_timer = setTimeout("do_poll()", poll_interval);
   }
@@ -247,7 +250,9 @@ function fetched_rows(responseText)
 
   if(obj.status == "ok")
   {
-   if(latest_row != obj.latest && latest_row > -1 && poll_interval == long_poll_interval)
+   var d = new Date();
+
+   if(latest_row != obj.latest && latest_row > -1 && d.getTime() > last_entry + flash_wait)
    {
      flash_ticks = 16;
      do_flash();
