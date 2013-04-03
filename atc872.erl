@@ -170,7 +170,7 @@ handle('POST', ["addrow"], Req) ->
   { Node, Nodes } = get_node_info(),
   RowData = add_row(Nodes, Channel, User, Text, Node, list_to_integer(LastRow), list_to_integer(RowsBack)),
   row_renderer(RowData, Req),
-  log_rt("Add row", Ctime)
+  log_rt("Add row (user:" ++ User ++ " channel:" ++ Channel ++ " text:" ++ Text ++ " from:" ++ LastRow ++ " back:" ++ RowsBack ++ ")", Ctime)
   ;
 handle('POST', ["fetchrows"], Req) ->
   Ctime = now(),
@@ -178,7 +178,7 @@ handle('POST', ["fetchrows"], Req) ->
   { Node, _ } = get_node_info(),
   RowData = fetch_rows(Node, Channel, User, list_to_integer(LastRow), list_to_integer(RowsBack)),
   row_renderer(RowData, Req),
-  log_rt("Fetch rows", Ctime)
+  log_rt("Fetch rows (user:" ++ User ++ " channel:" ++ Channel ++ " from:" ++ LastRow ++ " back:" ++ RowsBack ++ ")", Ctime)
   ;
 handle('POST', ["searchrows"], Req) ->
   Ctime = now(),
@@ -186,7 +186,7 @@ handle('POST', ["searchrows"], Req) ->
   { Node, _ } = get_node_info(),
   RowData = search_rows(Node, Channel, list_to_integer(RowsBack), Pattern),
   row_renderer(RowData, Req),
-  log_rt("Search", Ctime)
+  log_rt("Search (channel:" ++ Channel ++ " back:" ++ RowsBack ++ " pattern:" ++ Pattern ++ ")", Ctime)
   ;
 handle('GET', [Static], Req) ->
   Req:file("web/"++Static).
@@ -224,7 +224,6 @@ add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack) ->
   add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, now()).
 
 add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, Now) ->
-  error_logger:info_msg("Adding row to ~p from ~p: ~p (node: ~p, nodes: ~p, from: ~p, back: ~p)~n", [ Channel, User, Text, Node, Nodes, LastRow, RowsBack ]),
   Transaction=fun() ->
     lists:foreach(fun(I) ->
       case mnesia:read({ rows, { last, Channel, I } }) of
@@ -321,7 +320,6 @@ get_search_results(Node, Channel, RowsBack, SearchString) ->
 % Return the last N rows after the specified row ID on a given channel.
 
 fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
-  error_logger:info_msg("Fetching rows for ~p from ~p (node: ~p, from: ~p, back: ~p)~n", [ User, Channel, Node, LastRow, RowsBack ]),
   Transaction=fun() ->
     case mnesia:read({ rows, users }) of
       [{ _, _, CurrentUserList }] ->
@@ -347,7 +345,6 @@ fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
 % Transactional wrapper for conducting a channel search.
 
 search_rows(Node, Channel, RowsBack, SearchString) ->
-  error_logger:info_msg("Searching for ~p from ~p (node: ~p, back: ~p)~n", [ SearchString, Channel, Node, RowsBack ]),
   Transaction=fun() ->
     get_search_results(Node, Channel, RowsBack, SearchString)
   end,
