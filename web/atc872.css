@@ -4,7 +4,12 @@
   font-size: 12pt;
   font-weight: bold;
   letter-spacing: 2px;
-  color: #555599;
+  color: #ffffff;
+  background-color: #bb4444;
+  padding: 8px;
+  -moz-border-radius: 10px;
+  -webkit-border-radius: 10px;
+  border-radius: 10px;
 }
 
 .rowdatecss
@@ -19,7 +24,7 @@
 .rowtextcss
 {
   font-family: arial,helvetica;
-  font-size: 10pt;
+  font-size: 12pt;
   letter-spacing: 2px;
   color: #555599;
   padding-left: 20px;

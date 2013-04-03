@@ -95,6 +95,14 @@ handle_http(Req) ->
 
 
 
+% Convert a now() to a dd-mm-yyyy.
+
+now_to_string(Now) ->
+  { { Yr, Mo, Dy }, { Hr, Mi, _ } } = calendar:now_to_local_time(Now),
+  pad(integer_to_list(Hr)) ++ ":" ++ pad(integer_to_list(Mi)) ++ " " ++ pad(integer_to_list(Dy)) ++ "-" ++ pad(integer_to_list(Mo)) ++ "-" ++ integer_to_list(Yr).
+
+
+
 % Takes a list of rows and a Misultin request reference, then renders the
 % rows as a JSON document.
 
@@ -106,12 +114,11 @@ row_renderer(RowData, Req) ->
       ;
     { LatestRow, RowList } ->
       Rows = lists:foldl(fun({ Now, User, Text }, A) ->
-                         { { Yr, Mo, Dy }, { Hr, Mi, _ } } = calendar:now_to_local_time(Now),
                          Pfx = case length(A) of
                            0 -> "";
                            _ -> "," ++[10]
                          end,
-                         A ++ Pfx ++ "    { \"time\": \"" ++ pad(integer_to_list(Hr)) ++ ":" ++ pad(integer_to_list(Mi)) ++ " " ++ pad(integer_to_list(Dy)) ++ "-" ++ pad(integer_to_list(Mo)) ++ "-" ++ integer_to_list(Yr) ++ "\", \"user\": \"" ++quote_handler(User)++ "\", \"text\": \"" ++quote_handler(Text)++ "\" }"
+                         A ++ Pfx ++ "    { \"time\": \"" ++ now_to_string(Now) ++ "\", \"user\": \"" ++quote_handler(User)++ "\", \"text\": \"" ++quote_handler(Text)++ "\" }"
                          end, [], RowList),
       Req:ok("{ \"status\": \"ok\"," ++ [10] ++
              "  \"latest\": " ++integer_to_list(LatestRow) ++ "," ++[10]++
@@ -143,28 +150,43 @@ quote_handler(Str) ->
 
 
 
+% Log RT time.
+
+log_rt(Pfx, Then) ->
+  { Ms1, Sc1, Us1 } = Then,
+  { Ms2, Sc2, Us2 } = now(),
+  error_logger:info_msg("~s took: ~p us~n", [Pfx, ((Ms2 * 1000000000000) + (Sc2 * 1000000) + Us2) - ((Ms1 * 1000000000000) + (Sc1 * 1000000) + Us1)]).
+
+
+
 % REST-ful interface to the web server.
 
 handle('GET', [], Req) ->
   Req:file("web/atc872.html")
   ;
 handle('POST', ["addrow"], Req) ->
+  Ctime = now(),
   [{ "channel", Channel }, { "user", User }, { "text", Text }, { "from", LastRow }, { "back", RowsBack }] = Req:parse_post(),
   { Node, Nodes } = get_node_info(),
   RowData = add_row(Nodes, Channel, User, Text, Node, list_to_integer(LastRow), list_to_integer(RowsBack)),
-  row_renderer(RowData, Req)
+  row_renderer(RowData, Req),
+  log_rt("Add row", Ctime)
   ;
 handle('POST', ["fetchrows"], Req) ->
+  Ctime = now(),
   [{ "channel", Channel }, { "user", User }, { "from", LastRow }, { "back", RowsBack }] = Req:parse_post(),
   { Node, _ } = get_node_info(),
   RowData = fetch_rows(Node, Channel, User, list_to_integer(LastRow), list_to_integer(RowsBack)),
-  row_renderer(RowData, Req)
+  row_renderer(RowData, Req),
+  log_rt("Fetch rows", Ctime)
   ;
 handle('POST', ["searchrows"], Req) ->
+  Ctime = now(),
   [{ "channel", Channel }, { "back", RowsBack }, { "pattern", Pattern }] = Req:parse_post(),
   { Node, _ } = get_node_info(),
   RowData = search_rows(Node, Channel, list_to_integer(RowsBack), Pattern),
-  row_renderer(RowData, Req)
+  row_renderer(RowData, Req),
+  log_rt("Search", Ctime)
   ;
 handle('GET', [Static], Req) ->
   Req:file("web/"++Static).
@@ -213,6 +235,7 @@ add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, Now) ->
         [] ->
           mnesia:write({ rows, { first, Channel, I }, 0 }),
           mnesia:write({ rows, { last, Channel, I }, 0 }),
+          mnesia:write({ rows, { created, Channel, I }, { Now, User } }),
           mnesia:write({ rows, { I, Channel, 0 }, { Now, User, Text } })
       end,
       case mnesia:read({ rows, { updated, I } }) of
@@ -276,7 +299,13 @@ get_search_results(Node, Channel, RowsBack, SearchString) ->
               match ->
                 [{ Now, User, Text }]
                 ;
-              _ -> []
+              _ ->
+                case re:run(now_to_string(Now), SearchString, [{ capture, none }, caseless]) of
+                  match ->
+                    [{ Now, User, Text }]
+                    ;
+                  _ -> []
+                end
             end
         end,
         M1 ++ A

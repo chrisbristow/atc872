@@ -250,13 +250,13 @@ function fetched_rows(responseText)
 
   if(obj.status == "ok")
   {
-   var d = new Date();
+    var d = new Date();
 
-   if(latest_row != obj.latest && latest_row > -1 && d.getTime() > last_entry + flash_wait)
-   {
-     flash_ticks = 16;
-     do_flash();
-   }
+    if(latest_row != obj.latest && latest_row > -1 && d.getTime() > last_entry + flash_wait)
+    {
+      flash_ticks = 16;
+      do_flash();
+    }
 
     latest_row = obj.latest;
 
