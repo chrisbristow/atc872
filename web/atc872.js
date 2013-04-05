@@ -48,6 +48,7 @@ var flash_interval = 500;
 var flash_ticks = 0;
 var flash_wait = 10000;
 var last_entry = 0;
+//var fade_started = 0;
 
 
 
@@ -251,11 +252,18 @@ function fetched_rows(responseText)
   if(obj.status == "ok")
   {
     var d = new Date();
+    var update_count = -1;
 
-    if(latest_row != obj.latest && latest_row > -1 && d.getTime() > last_entry + flash_wait)
+    if(latest_row != obj.latest && latest_row > -1)
     {
-      flash_ticks = 16;
-      do_flash();
+      update_count = 0;
+
+      if(d.getTime() > last_entry + flash_wait)
+      {
+        flash_ticks = 16;
+        document.title = channel;
+        do_flash();
+      }
     }
 
     latest_row = obj.latest;
@@ -267,6 +275,24 @@ function fetched_rows(responseText)
       var tx = obj.rows[i].text;
 
       $("textlist").innerHTML = "<br><div class=\"rowdatecss\">"+tm+" "+us+":</div><div class=\"rowtextcss\">"+tx+"</div>" + $("textlist").innerHTML;
+
+      if(update_count > -1)
+      {
+        update_count ++;
+      }
     }
+
+//  if(update_count > 0 && d.getTime() > (fade_started + 1000))
+//  {
+//    fade_started = d.getTime();
+//
+//    for(var j = 0; j < update_count; j++)
+//    {
+//      $("textlist").childNodes[(j * 3) + 1].setStyle('color', '#ffffff');
+//      $("textlist").childNodes[(j * 3) + 1].morph({ 'color': '#ff6666' });
+//      $("textlist").childNodes[(j * 3) + 2].setStyle('color', '#ffffff');
+//      $("textlist").childNodes[(j * 3) + 2].morph({ 'color': '#555599' });
+//    }
+//  }
   }
 }
