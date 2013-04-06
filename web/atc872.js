@@ -48,7 +48,7 @@ var flash_interval = 500;
 var flash_ticks = 0;
 var flash_wait = 10000;
 var last_entry = 0;
-//var fade_started = 0;
+// var fade_started = 0;
 
 
 
@@ -119,9 +119,11 @@ function enter_search(event)
 {
   if(event.keyCode == 13 && $("asearch").value.length > 1 && /\S+/.test($("asearch").value))
   {
-    $("textlist").innerHTML = "";
+    $("textlist").innerHTML = "<div class=\"rowdatecss\">Searching for \""+$("asearch").value+"\"</div>";
+    $("asearch").readOnly = true;
+    $("rtn_to_channel").setStyle("display", "none");
 
-    var ajax=new Request({ url: "searchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
+    var ajax=new Request({ url: "searchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText, true) } });
     ajax.post("channel="+channel+"&back="+max_extent+"&pattern="+$("asearch").value);
   }
 }
@@ -135,7 +137,7 @@ function enter_usertext(event)
 {
   if(event.keyCode == 13 && $("usertextinput").value.length > 0 && /\S+/.test($("usertextinput").value))
   {
-    var ajax=new Request({ url: "addrow", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
+    var ajax=new Request({ url: "addrow", onSuccess: function(responseText, responseXML) { fetched_rows(responseText, false) } });
     ajax.post("channel="+channel+"&user="+user+"&text="+encodeURIComponent($("usertextinput").value)+"&from="+latest_row+"&back="+max_extent);
 
     $("usertextinput").value = "";
@@ -157,8 +159,13 @@ function do_poll()
 {
   clearTimeout(poll_timer);
 
-  var ajax=new Request({ url: "fetchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText) } });
+  var ajax=new Request({ url: "fetchrows", onSuccess: function(responseText, responseXML) { fetched_rows(responseText, false) } });
   ajax.post("channel="+channel+"&user="+user+"&from="+latest_row+"&back="+max_extent);
+
+  if(flash_ticks == 0)
+  {
+    document.title = channel;
+  }
 
   if(poll_acc > 0)
   {
@@ -184,8 +191,8 @@ function do_flash()
   if(flash_ticks > 0)
   {
     document.title = document.title == channel ? "**********" : channel;
-    flash_timer = setTimeout("do_flash()", flash_interval);
     flash_ticks --;
+    flash_timer = setTimeout("do_flash()", flash_interval);
   }
   else
   {
@@ -203,7 +210,7 @@ function init_channel()
   latest_row = -1;
   document.title = channel;
 
-  $("area51").innerHTML  = "<div class=\"channelcss\">"+channel+"</div><br>";
+  $("area51").innerHTML  = "<div id=\"channelname\" class=\"channelcss\">"+channel+"</div><br>";
   $("area51").innerHTML += "<div class=\"rowdatecss\">"+user+" says:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></div>";
   $("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></div>";
@@ -223,8 +230,9 @@ function go_to_search()
 
   $("area51").innerHTML  = "<div class=\"rowdatecss\">Search in \""+channel+"\" for:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"asearch\" onkeyup=\"enter_search(event);\"></div>";
-  $("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
+  $("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
   $("area51").innerHTML += "<div id=\"textlist\"></div>";
+  $("asearch").readOnly = false;
 }
 
 
@@ -245,9 +253,16 @@ function change_user()
 
 // Render the channel text event list, or search result list.
 
-function fetched_rows(responseText)
+function fetched_rows(responseText, is_a_search)
 {
   var obj = JSON.decode(responseText);
+
+  if(is_a_search)
+  {
+    $("asearch").readOnly = false;
+    $("textlist").innerHTML = "";
+    $("rtn_to_channel").setStyle("display", "block");
+  }
 
   if(obj.status == "ok")
   {
@@ -281,6 +296,13 @@ function fetched_rows(responseText)
         update_count ++;
       }
     }
+
+    while($("textlist").childNodes.length > (max_extent * 3))
+    {
+      $("textlist").removeChild($("textlist").lastChild);
+    }
+
+//  $("channelname").innerHTML = channel + " " + $("textlist").childNodes.length;
 
 //  if(update_count > 0 && d.getTime() > (fade_started + 1000))
 //  {

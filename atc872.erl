@@ -281,35 +281,74 @@ get_rows(Node, Channel, LastRow, RowsBack) ->
 
 
 
+% Recursive search function.
+
+search_row(Node, Channel, RowsBack, SearchString, Row, MatchCount, MatchList) ->
+  if
+    MatchCount > RowsBack ->
+      MatchList
+      ;
+    true ->
+      case mnesia:read({ rows, { Node, Channel, Row } }) of
+        [ { _, _, { Now, User, Text } } ] ->
+          case re:run(User, SearchString, [{ capture, none }, caseless]) of
+            match ->
+              search_row(Node, Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
+              ;
+            _ ->
+              case re:run(Text, SearchString, [{ capture, none }, caseless]) of
+                match ->
+                  search_row(Node, Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
+                  ;
+                _ ->
+                  case re:run(now_to_string(Now), SearchString, [{ capture, none }, caseless]) of
+                    match ->
+                      search_row(Node, Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
+                      ;
+                    _ ->
+                      search_row(Node, Channel, RowsBack, SearchString, Row - 1, MatchCount, MatchList)
+                  end
+              end
+          end
+          ;
+        _ -> MatchList
+    end
+  end.
+
+
+
+
+
 % Search for a specific string in the Text and User parts the last N rows
 % of a given channel.
 
 get_search_results(Node, Channel, RowsBack, SearchString) ->
   case mnesia:read({ rows, { last, Channel, Node } }) of
     [ { _, _, Last } ] ->
-      ResultSet = lists:foldl(fun(E, A) ->
-        [ { _, _, { Now, User, Text } } ] = mnesia:read({ rows, { Node, Channel, E } }),
-        M1 = case re:run(User, SearchString, [{ capture, none }, caseless]) of
-          match ->
-            [{ Now, User, Text }]
-            ;
-          _ ->
-            case re:run(Text, SearchString, [{ capture, none }, caseless]) of
-              match ->
-                [{ Now, User, Text }]
-                ;
-              _ ->
-                case re:run(now_to_string(Now), SearchString, [{ capture, none }, caseless]) of
-                  match ->
-                    [{ Now, User, Text }]
-                    ;
-                  _ -> []
-                end
-            end
-        end,
-        M1 ++ A
-      end, [], lists:seq(Last, 0, -1)),
-      { -1, lists:sublist(ResultSet, RowsBack) }
+      { -1, lists:reverse(search_row(Node, Channel, RowsBack, SearchString, Last, 0, [])) }
+%     ResultSet = lists:foldl(fun(E, A) ->
+%       [ { _, _, { Now, User, Text } } ] = mnesia:read({ rows, { Node, Channel, E } }),
+%       M1 = case re:run(User, SearchString, [{ capture, none }, caseless]) of
+%         match ->
+%           [{ Now, User, Text }]
+%           ;
+%         _ ->
+%           case re:run(Text, SearchString, [{ capture, none }, caseless]) of
+%             match ->
+%               [{ Now, User, Text }]
+%               ;
+%             _ ->
+%               case re:run(now_to_string(Now), SearchString, [{ capture, none }, caseless]) of
+%                 match ->
+%                   [{ Now, User, Text }]
+%                   ;
+%                 _ -> []
+%               end
+%           end
+%       end,
+%       M1 ++ A
+%     end, [], lists:seq(Last, 0, -1)),
+%     { -1, lists:sublist(ResultSet, RowsBack) }
       ;
     [] -> no_such_channel
   end.
@@ -323,10 +362,10 @@ fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
   Transaction=fun() ->
     case mnesia:read({ rows, users }) of
       [{ _, _, CurrentUserList }] ->
-        mnesia:write({ rows, users, lists:keystore(User, 1, CurrentUserList, { User, now() }) })
+        mnesia:write({ rows, { users, Channel }, lists:keystore(User, 1, CurrentUserList, { User, now() }) })
         ;
       [] ->
-        mnesia:write({ rows, users, [{ User, now() }] })
+        mnesia:write({ rows, { users, Channel }, [{ User, now() }] })
     end,
     get_rows(Node, Channel, LastRow, RowsBack)
   end,
