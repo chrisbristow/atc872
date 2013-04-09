@@ -33,7 +33,7 @@
 
 
 -module(atc872).
--export([start/1, add_row/7, add_row/8, fetch_rows/5, search_rows/4]).
+-export([start/1, add_row/7, add_row/8, fetch_rows/5, search_rows/4, archiver/2]).
 
 
 
@@ -42,10 +42,14 @@
 % - TCP port for the web server.
 % - Node ID number.
 % - Number of nodes in the cluster.
+% - Number of rows to cache before the archiver writes them to disk.
 % Initialises Mnesia and starts the Misultin web server.
 
-start([ Port, Node, Nodes ]) ->
+start([ Port, Node, Nodes, CachedRows ]) ->
+  process_flag(trap_exit, true),
+
   error_logger:info_msg("Starting node: ~s (total nodes: ~s)~n", [ Node, Nodes ]),
+  error_logger:info_msg("Caching ~s rows~n", [ CachedRows ]),
   error_logger:info_msg("Initialising Mnesia~n"),
 
   mnesia:start(),
@@ -61,6 +65,9 @@ start([ Port, Node, Nodes ]) ->
 
   error_logger:info_msg("Starting the web server on port: ~s~n", [ Port ]),
   misultin:start_link([ { port, list_to_integer(atom_to_list(Port)) }, { loop, fun(Req) -> handle_http(Req) end } ]),
+
+  error_logger:info_msg("Starting the archiver~n"),
+  spawn_link(?MODULE, archiver, [ list_to_integer(atom_to_list(Node)), list_to_integer(atom_to_list(CachedRows)) ]),
 
   error_logger:info_msg("Ready~n"),
 
@@ -95,7 +102,7 @@ handle_http(Req) ->
 
 
 
-% Convert a now() to a dd-mm-yyyy.
+% Convert a now() to a HH:MM dd-mm-yyyy.
 
 now_to_string(Now) ->
   { { Yr, Mo, Dy }, { Hr, Mi, _ } } = calendar:now_to_local_time(Now),
@@ -224,7 +231,7 @@ add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack) ->
   add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, now()).
 
 add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, Now) ->
-  Transaction=fun() ->
+  Transaction = fun() ->
     lists:foreach(fun(I) ->
       case mnesia:read({ rows, { last, Channel, I } }) of
         [ { _, _, L } ] ->
@@ -249,7 +256,7 @@ add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, Now) ->
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
-      error_logger:warning_msg("Add row failed: ~p~n", [Reason]),
+      error_logger:warning_msg("Error: Add row failed: ~p~n", [Reason]),
       error
       ;
     { atomic, Rval } ->
@@ -281,7 +288,10 @@ get_rows(Node, Channel, LastRow, RowsBack) ->
 
 
 
-% Recursive search function.
+
+% Recursive search function.  Searches the cache in reverse until:
+% - RowsBack rows have been found.
+% - The start of the cache ("first") is reached.
 
 search_row(Node, Channel, RowsBack, SearchString, Row, MatchCount, MatchList) ->
   if
@@ -326,29 +336,6 @@ get_search_results(Node, Channel, RowsBack, SearchString) ->
   case mnesia:read({ rows, { last, Channel, Node } }) of
     [ { _, _, Last } ] ->
       { -1, lists:reverse(search_row(Node, Channel, RowsBack, SearchString, Last, 0, [])) }
-%     ResultSet = lists:foldl(fun(E, A) ->
-%       [ { _, _, { Now, User, Text } } ] = mnesia:read({ rows, { Node, Channel, E } }),
-%       M1 = case re:run(User, SearchString, [{ capture, none }, caseless]) of
-%         match ->
-%           [{ Now, User, Text }]
-%           ;
-%         _ ->
-%           case re:run(Text, SearchString, [{ capture, none }, caseless]) of
-%             match ->
-%               [{ Now, User, Text }]
-%               ;
-%             _ ->
-%               case re:run(now_to_string(Now), SearchString, [{ capture, none }, caseless]) of
-%                 match ->
-%                   [{ Now, User, Text }]
-%                   ;
-%                 _ -> []
-%               end
-%           end
-%       end,
-%       M1 ++ A
-%     end, [], lists:seq(Last, 0, -1)),
-%     { -1, lists:sublist(ResultSet, RowsBack) }
       ;
     [] -> no_such_channel
   end.
@@ -359,7 +346,7 @@ get_search_results(Node, Channel, RowsBack, SearchString) ->
 % Return the last N rows after the specified row ID on a given channel.
 
 fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
-  Transaction=fun() ->
+  Transaction = fun() ->
     case mnesia:read({ rows, users }) of
       [{ _, _, CurrentUserList }] ->
         mnesia:write({ rows, { users, Channel }, lists:keystore(User, 1, CurrentUserList, { User, now() }) })
@@ -371,7 +358,7 @@ fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
-      error_logger:warning_msg("Fetch rows failed: ~p~n", [Reason]),
+      error_logger:warning_msg("Error: Fetch rows failed: ~p~n", [Reason]),
       error
       ;
     { atomic, Rval } ->
@@ -384,14 +371,191 @@ fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
 % Transactional wrapper for conducting a channel search.
 
 search_rows(Node, Channel, RowsBack, SearchString) ->
-  Transaction=fun() ->
+  Transaction = fun() ->
     get_search_results(Node, Channel, RowsBack, SearchString)
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
-      error_logger:warning_msg("Search rows failed: ~p~n", [Reason]),
+      error_logger:warning_msg("Error: Search rows failed: ~p~n", [Reason]),
       error
       ;
     { atomic, Rval } ->
       Rval
+  end.
+
+
+
+
+% Archiver main loop.
+
+archiver(Node, CachedRows) ->
+  Transaction = fun() ->
+    case mnesia:read({ rows, { updated, Node } }) of
+      [] ->
+        []
+        ;
+      [{ _, _, [] }] ->
+        []
+        ;
+      [{ _, _, UpdateList }] ->
+        mnesia:delete({ rows, { updated, Node } }),
+        UpdateList
+%     [{ _, _, [{ Channel, _Now } | Rest ] }] ->
+%       mnesia:write({ rows, { updated, Node }, Rest }),
+%       [{ _, _, First }] = mnesia:read({ rows, { first, Channel, Node } }),
+%       [{ _, _, Last }] = mnesia:read({ rows, { last, Channel, Node } }),
+%
+%       if
+%         (Last - First) > CachedRows ->
+%           { archive_this, Channel, First, ((Last - First) - CachedRows) }
+%           ;
+%         true ->
+%           []
+%       end
+    end
+  end,
+  case mnesia:transaction(Transaction) of
+    { aborted, Reason } ->
+      error_logger:info_warning("Error: Archiver error: ~p~n", [ Reason ]),
+      timer:sleep(10000),
+      archiver(Node, CachedRows)
+      ;
+    { atomic, [] } ->
+      timer:sleep(5000),
+      archiver(Node, CachedRows)
+      ;
+%   { atomic, { archive_this, Channel, Oldest, Newest } } ->
+%     error_logger:info_msg("Archiving: ~s, rows ~p to ~p~n", [ Channel, Oldest, Newest ]),
+%     do_archive(Node, Channel, Oldest, Newest),
+%     archiver(Node, CachedRows)
+%     ;
+    { atomic, UpdateList } ->
+      lists:foreach(fun({ Channel, _ }) ->
+%       error_logger:info_msg("DEBUG: do_archive(): node:~p channel:~s~n", [ Node, Channel ]),
+        do_archive(Node, Channel, CachedRows, 0)
+      end, UpdateList),
+      archiver(Node, CachedRows)
+      ;
+    Else ->
+      error_logger:info_warning("Error: Archiver error: ~p~n", [ Else ]),
+      archiver(Node, CachedRows)
+  end.
+
+
+
+
+% Start archiving.
+
+do_archive(Node, Channel, CachedRows, N) ->
+  Transaction = fun() ->
+    [{ _, _, First }] = mnesia:read({ rows, { first, Channel, Node } }),
+    [{ _, _, Last }] = mnesia:read({ rows, { last, Channel, Node } }),
+
+    if
+      (Last - First) > CachedRows ->
+        [{ _, _, { Now, User, Text } }] = mnesia:read({ rows, { Node, Channel, First } }),
+        { archive_this, First, Now, User, Text }
+        ;
+      true ->
+        []
+    end
+  end,
+  case mnesia:transaction(Transaction) of
+    { aborted, Reason } ->
+      error_logger:info_warning("Error: Archiver error: ~p~n", [ Reason ])
+      ;
+    { atomic, { archive_this, First, Now, User, Text } } ->
+      case write_row_to_file(Channel, Now, User, Text) of
+        ok ->
+          remove_archived_row(Node, Channel, First),
+          timer:sleep(100),
+          do_archive(Node, Channel, CachedRows, N + 1)
+          ;
+        { error, Reason } ->
+          error_logger:info_warning("Error: Archiver error - write_row_to_file failed: ~p~n", [ Reason ])
+      end
+      ;
+    { atomic, [] } ->
+      if
+        N > 0 ->
+          error_logger:info_msg("Archived ~p row(s) from ~s~n", [ N, Channel ])
+          ;
+        true ->
+          ok
+      end
+  end.
+
+
+
+
+% do_archive(Node, Channel, ThisRow, Newest) when ThisRow < Newest ->
+%   Transaction = fun() ->
+%     [{ _, _, { Now, User, Text } }] = mnesia:read({ rows, { Node, Channel, ThisRow } }),
+%     { Now, User, Text }
+%   end,
+%   case mnesia:transaction(Transaction) of
+%     { aborted, Reason } ->
+%       error_logger:info_warning("Error: Archiver error: ~p~n", [ Reason ])
+%       ;
+%     { atomic, { Now, User, Text } } ->
+%       case write_row_to_file(Now, User, Text) of
+%         ok ->
+%           remove_archived_row(Node, Channel, ThisRow),
+%           do_archive(Node, Channel, ThisRow + 1, Newest)
+%           ;
+%         _ ->
+%           error
+%       end
+%   end
+%   ;
+% do_archive(_, _, _, _) ->
+%   ok.
+
+
+
+
+% Append a row to an archive file.
+
+write_row_to_file(Channel, Now, User, Text) ->
+  { { Yr, Mo, Dy }, _ } = calendar:now_to_local_time(Now),
+  Filename = "archive/" ++ integer_to_list(Yr) ++ pad(integer_to_list(Mo)) ++ pad(integer_to_list(Dy)) ++ "/" ++ Channel,
+  case filelib:ensure_dir(Filename) of
+    ok ->
+      case file:open(Filename, [ append ]) of
+        { ok, Iod } ->
+          io:format(Iod, "~1024000p.~n", [ { Now, User, Text } ]),
+          file:close(Iod),
+          ok
+          ;
+        { error, Reason } ->
+          { error, Reason }
+      end
+      ;
+    { error, Reason } ->
+      { error, Reason }
+  end.
+
+
+
+
+% Remove an archived row from the cache.
+
+remove_archived_row(Node, Channel, ThisRow) ->
+  Transaction = fun() ->
+    [{ _, _, First }] = mnesia:read({ rows, { first, Channel, Node } }),
+    if
+      First == ThisRow ->
+        mnesia:delete({ rows, { Node, Channel, ThisRow } }),
+        mnesia:write({ rows, { first, Channel, Node }, ThisRow + 1 })
+        ;
+      true ->
+        mnesia:abort(row_isnt_first)
+    end
+  end,
+  case mnesia:transaction(Transaction) of
+    { aborted, Reason } ->
+      error_logger:info_warning("Error: Archiver error - remove_archived_row failed: ~p~n", [ Reason ])
+      ;
+    { atomic, _ } ->
+      ok
   end.
