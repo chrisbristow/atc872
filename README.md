@@ -2,7 +2,7 @@ ATC872
 ======
 Overview
 --------
-TBC
+Unfinished !!  Not ready for use yet.
 
 TBC
 ---
@@ -16,8 +16,8 @@ curl -d "channel=ch1&user=nank&from=-1&back=200" http://localhost:8686/fetchrows
 curl -d "channel=The%20Rebooting%20Of%20The%20Things&back=200&pattern=what" http://localhost:8686/searchrows
 curl -d "channel=ch1&user=nank&text=XXXX&from=-1&back=200" http://localhost:8686/addrow
 
-{ {1365,245875,170506}, {"stuffage"}, {"pw1"} }.
-{ {1365,245913,892208}, {"pilot"}, {"woo"} }.
+{ {1365,245875,170506}, "stuffage", "pw1" }.
+{ {1365,245913,892208}, "pilot", "woo" }.
 
 { ok, Iod } = file:open("/tmp/d.txt").
 { ok, Data } = file:read_line(Iod).
