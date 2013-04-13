@@ -23,17 +23,17 @@ Quick Start
 4) Download mootools.js and place in the web directory.  Make sure it is named "mootools.js".
 
 5) Compile atc872.erl:
-   erlc atc872.erl
+   - erlc atc872.erl
 
 6) Set up Erlang's Mnesia database:
-   erl -sname atc -setcookie atc872
-   mnesia:create_schema(['-- INSERT ERLANG NODE NAME HERE --']).
-   mnesia:start().
-   mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, ['-- INSERT ERLANG NODE NAME HERE --'] }]).
-   q().
+   - erl -sname atc -setcookie atc872
+   - mnesia:create_schema(['-- INSERT ERLANG NODE NAME HERE --']).
+   - mnesia:start().
+   - mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, ['-- INSERT ERLANG NODE NAME HERE --'] }]).
+   - q().
 
 7) Start ATC872:
-   erl -sname atc -setcookie atc872 -noshell -pa ostinelli-misultin-59a72fd/ebin -s atc872 start 8686 0 1 250
+   - erl -sname atc -setcookie atc872 -noshell -pa ostinelli-misultin-59a72fd/ebin -s atc872 start 8686 0 1 250
 
    - 8686 is the port the web server will listen on.
    - 0 is the ID of this ATC872 node.
