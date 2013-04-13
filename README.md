@@ -15,7 +15,8 @@ Quick Start
 -----------
 1) Download Erlang from http://www.erlang.org/ and install.
 
-2) Download ATC872 from xxxx and place atc872.erl and web (directory) in the same directory.
+2) Download ATC872 from https://github.com/chrisbristow/atc872 and place atc872.erl and web (directory)
+   in the same directory.
 
 3) Download Misultin from https://github.com/ostinelli/misultin, compile, and place in a directory
    alongside atc872.erl and web.
@@ -47,6 +48,6 @@ Quick Start
 
 Testing the REST interfaces
 ---------------------------
-curl -d "channel=ch1&user=nank&from=-1&back=200" http://localhost:8686/fetchrows
-curl -d "channel=The%20Rebooting%20Of%20The%20Things&back=200&pattern=what" http://localhost:8686/searchrows
-curl -d "channel=ch1&user=nank&text=XXXX&from=-1&back=200" http://localhost:8686/addrow
+- curl -d "channel=ch1&user=nank&from=-1&back=200" http://localhost:8686/fetchrows
+- curl -d "channel=The%20Rebooting%20Of%20The%20Things&back=200&pattern=what" http://localhost:8686/searchrows
+- curl -d "channel=ch1&user=nank&text=XXXX&from=-1&back=200" http://localhost:8686/addrow
