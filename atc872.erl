@@ -523,9 +523,14 @@ write_row_to_file(Channel, Now, User, Text) ->
     ok ->
       case file:open(Filename, [ append ]) of
         { ok, Iod } ->
-          io:format(Iod, "~1024000p.~n", [ { Now, User, Text } ]),
-          file:close(Iod),
-          ok
+          try io:format(Iod, "~1024000p.~n", [ { Now, User, Text } ]) of
+            ok ->
+              file:close(Iod),
+              ok
+          catch
+            _:_ ->
+              { error, "Write to archive has failed" }
+          end
           ;
         { error, Reason } ->
           { error, Reason }
