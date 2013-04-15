@@ -33,22 +33,20 @@
 
 
 -module(atc872).
--export([start/1, add_row/7, add_row/8, fetch_rows/5, search_rows/4, archiver/2]).
+-export([start/1, add_row/5, add_row/6, fetch_rows/4, search_rows/3, archiver/1]).
 
 
 
 
 % Start hook.  Takes arguments:
 % - TCP port for the web server.
-% - Node ID number.
-% - Number of nodes in the cluster.
 % - Number of rows to cache before the archiver writes them to disk.
 % Initialises Mnesia and starts the Misultin web server.
 
-start([ Port, Node, Nodes, CachedRows ]) ->
+start([ Port, CachedRows ]) ->
   process_flag(trap_exit, true),
 
-  error_logger:info_msg("Starting node: ~s (total nodes: ~s)~n", [ Node, Nodes ]),
+  error_logger:info_msg("Starting node: ~p~n", [ node() ]),
   error_logger:info_msg("Caching ~s rows~n", [ CachedRows ]),
   error_logger:info_msg("Initialising Mnesia~n"),
 
@@ -67,28 +65,7 @@ start([ Port, Node, Nodes, CachedRows ]) ->
   misultin:start_link([ { port, list_to_integer(atom_to_list(Port)) }, { loop, fun(Req) -> handle_http(Req) end } ]),
 
   error_logger:info_msg("Starting the archiver~n"),
-  spawn_link(?MODULE, archiver, [ list_to_integer(atom_to_list(Node)), list_to_integer(atom_to_list(CachedRows)) ]),
-
-  error_logger:info_msg("Ready~n"),
-
-  register(main, self()),
-  loop(list_to_integer(atom_to_list(Node)), list_to_integer(atom_to_list(Nodes))).
-
-
-
-
-% Daemon process that returns the current node ID and number of
-% nodes in the cluster on receipt of a message.
-
-loop(Node, Nodes) ->
-  receive
-    { nodeinfo, Requestor } ->
-      Requestor ! { Node, Nodes },
-      loop(Node, Nodes)
-      ;
-    _ ->
-      loop(Node, Nodes)
-  end.
+  archiver(list_to_integer(atom_to_list(CachedRows))).
 
 
 
@@ -174,24 +151,21 @@ handle('GET', [], Req) ->
 handle('POST', ["addrow"], Req) ->
   Ctime = now(),
   [{ "channel", Channel }, { "user", User }, { "text", Text }, { "from", LastRow }, { "back", RowsBack }] = Req:parse_post(),
-  { Node, Nodes } = get_node_info(),
-  RowData = add_row(Nodes, Channel, User, Text, Node, list_to_integer(LastRow), list_to_integer(RowsBack)),
+  RowData = add_row(Channel, User, Text, list_to_integer(LastRow), list_to_integer(RowsBack)),
   row_renderer(RowData, Req),
   log_rt("Add row (user:" ++ User ++ " channel:" ++ Channel ++ " text:" ++ Text ++ " from:" ++ LastRow ++ " back:" ++ RowsBack ++ ")", Ctime)
   ;
 handle('POST', ["fetchrows"], Req) ->
   Ctime = now(),
   [{ "channel", Channel }, { "user", User }, { "from", LastRow }, { "back", RowsBack }] = Req:parse_post(),
-  { Node, _ } = get_node_info(),
-  RowData = fetch_rows(Node, Channel, User, list_to_integer(LastRow), list_to_integer(RowsBack)),
+  RowData = fetch_rows(Channel, User, list_to_integer(LastRow), list_to_integer(RowsBack)),
   row_renderer(RowData, Req),
   log_rt("Fetch rows (user:" ++ User ++ " channel:" ++ Channel ++ " from:" ++ LastRow ++ " back:" ++ RowsBack ++ ")", Ctime)
   ;
 handle('POST', ["searchrows"], Req) ->
   Ctime = now(),
   [{ "channel", Channel }, { "back", RowsBack }, { "pattern", Pattern }] = Req:parse_post(),
-  { Node, _ } = get_node_info(),
-  RowData = search_rows(Node, Channel, list_to_integer(RowsBack), Pattern),
+  RowData = search_rows(Channel, list_to_integer(RowsBack), Pattern),
   row_renderer(RowData, Req),
   log_rt("Search (channel:" ++ Channel ++ " back:" ++ RowsBack ++ " pattern:" ++ Pattern ++ ")", Ctime)
   ;
@@ -211,26 +185,15 @@ pad(Str) ->
 
 
 
-% Get the node ID and number of nodes from the "main" loop daemon.
-
-get_node_info() ->
-  main ! { nodeinfo, self() },
-  receive
-    { Node, Nodes } -> { Node, Nodes };
-    _ -> error
-  end.
-
-
-
 
 % Add a row to the database and return all new rows (including the row added).
 % The function containing the argument "Now" allows the row to be given a specific date, otherwise
 % the current date/time is used.
 
-add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack) ->
-  add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, now()).
+add_row(Channel, User, Text, LastRow, RowsBack) ->
+  add_row(Channel, User, Text, LastRow, RowsBack, now()).
 
-add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, Now) ->
+add_row(Channel, User, Text, LastRow, RowsBack, Now) ->
   Transaction = fun() ->
     lists:foreach(fun(I) ->
       case mnesia:read({ rows, { last, Channel, I } }) of
@@ -251,8 +214,8 @@ add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, Now) ->
         [] ->
           mnesia:write({ rows, { updated, I }, lists:keystore(Channel, 1, [], { Channel, Now }) })
       end
-    end,lists:seq(0, Nodes - 1)),
-    get_rows(Node, Channel, LastRow, RowsBack)
+    end, mnesia:table_info(rows, disc_copies)),
+    get_rows(Channel, LastRow, RowsBack)
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
@@ -268,13 +231,13 @@ add_row(Nodes, Channel, User, Text, Node, LastRow, RowsBack, Now) ->
 
 % Return all rows added after the given row ID ("LastRow").
 
-get_rows(Node, Channel, LastRow, RowsBack) ->
-  case mnesia:read({ rows, { last, Channel, Node } }) of
+get_rows(Channel, LastRow, RowsBack) ->
+  case mnesia:read({ rows, { last, Channel, node() } }) of
     [ { _, _, Last } ] ->
       if
         Last > LastRow ->
           Rows = lists:foldl(fun(E, A) ->
-            [ { _, _, R } ] = mnesia:read({ rows, { Node, Channel, E } }),
+            [ { _, _, R } ] = mnesia:read({ rows, { node(), Channel, E } }),
             [ R ] ++ A
           end, [], lists:sublist(lists:seq(Last, LastRow + 1, -1), RowsBack)),
           { Last, Rows }
@@ -282,9 +245,9 @@ get_rows(Node, Channel, LastRow, RowsBack) ->
         true -> { Last, no_rows }
       end
       ;
-    [] -> no_such_channel
+    [] ->
+      no_such_channel
   end.
-
 
 
 
@@ -293,30 +256,30 @@ get_rows(Node, Channel, LastRow, RowsBack) ->
 % - RowsBack rows have been found.
 % - The start of the cache ("first") is reached.
 
-search_row(Node, Channel, RowsBack, SearchString, Row, MatchCount, MatchList) ->
+search_row(Channel, RowsBack, SearchString, Row, MatchCount, MatchList) ->
   if
     MatchCount > RowsBack ->
       MatchList
       ;
     true ->
-      case mnesia:read({ rows, { Node, Channel, Row } }) of
+      case mnesia:read({ rows, { node(), Channel, Row } }) of
         [ { _, _, { Now, User, Text } } ] ->
           case re:run(User, SearchString, [{ capture, none }, caseless]) of
             match ->
-              search_row(Node, Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
+              search_row(Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
               ;
             _ ->
               case re:run(Text, SearchString, [{ capture, none }, caseless]) of
                 match ->
-                  search_row(Node, Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
+                  search_row(Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
                   ;
                 _ ->
                   case re:run(now_to_string(Now), SearchString, [{ capture, none }, caseless]) of
                     match ->
-                      search_row(Node, Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
+                      search_row(Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
                       ;
                     _ ->
-                      search_row(Node, Channel, RowsBack, SearchString, Row - 1, MatchCount, MatchList)
+                      search_row(Channel, RowsBack, SearchString, Row - 1, MatchCount, MatchList)
                   end
               end
           end
@@ -332,12 +295,13 @@ search_row(Node, Channel, RowsBack, SearchString, Row, MatchCount, MatchList) ->
 % Search for a specific string in the Text and User parts the last N rows
 % of a given channel.
 
-get_search_results(Node, Channel, RowsBack, SearchString) ->
-  case mnesia:read({ rows, { last, Channel, Node } }) of
+get_search_results(Channel, RowsBack, SearchString) ->
+  case mnesia:read({ rows, { last, Channel, node() } }) of
     [ { _, _, Last } ] ->
-      { -1, lists:reverse(search_row(Node, Channel, RowsBack, SearchString, Last, 0, [])) }
+      { -1, lists:reverse(search_row(Channel, RowsBack, SearchString, Last, 0, [])) }
       ;
-    [] -> no_such_channel
+    [] ->
+      no_such_channel
   end.
 
 
@@ -345,7 +309,7 @@ get_search_results(Node, Channel, RowsBack, SearchString) ->
 
 % Return the last N rows after the specified row ID on a given channel.
 
-fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
+fetch_rows(Channel, User, LastRow, RowsBack) ->
   Transaction = fun() ->
     case mnesia:read({ rows, users }) of
       [{ _, _, CurrentUserList }] ->
@@ -354,7 +318,7 @@ fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
       [] ->
         mnesia:write({ rows, { users, Channel }, [{ User, now() }] })
     end,
-    get_rows(Node, Channel, LastRow, RowsBack)
+    get_rows(Channel, LastRow, RowsBack)
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
@@ -370,9 +334,9 @@ fetch_rows(Node, Channel, User, LastRow, RowsBack) ->
 
 % Transactional wrapper for conducting a channel search.
 
-search_rows(Node, Channel, RowsBack, SearchString) ->
+search_rows(Channel, RowsBack, SearchString) ->
   Transaction = fun() ->
-    get_search_results(Node, Channel, RowsBack, SearchString)
+    get_search_results(Channel, RowsBack, SearchString)
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
@@ -388,9 +352,9 @@ search_rows(Node, Channel, RowsBack, SearchString) ->
 
 % Archiver main loop.
 
-archiver(Node, CachedRows) ->
+archiver(CachedRows) ->
   Transaction = fun() ->
-    case mnesia:read({ rows, { updated, Node } }) of
+    case mnesia:read({ rows, { updated, node() } }) of
       [] ->
         []
         ;
@@ -398,47 +362,29 @@ archiver(Node, CachedRows) ->
         []
         ;
       [{ _, _, UpdateList }] ->
-        mnesia:delete({ rows, { updated, Node } }),
+        mnesia:delete({ rows, { updated, node() } }),
         UpdateList
-%     [{ _, _, [{ Channel, _Now } | Rest ] }] ->
-%       mnesia:write({ rows, { updated, Node }, Rest }),
-%       [{ _, _, First }] = mnesia:read({ rows, { first, Channel, Node } }),
-%       [{ _, _, Last }] = mnesia:read({ rows, { last, Channel, Node } }),
-%
-%       if
-%         (Last - First) > CachedRows ->
-%           { archive_this, Channel, First, ((Last - First) - CachedRows) }
-%           ;
-%         true ->
-%           []
-%       end
     end
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
       error_logger:info_warning("Error: Archiver error: ~p~n", [ Reason ]),
       timer:sleep(10000),
-      archiver(Node, CachedRows)
+      archiver(CachedRows)
       ;
     { atomic, [] } ->
       timer:sleep(5000),
-      archiver(Node, CachedRows)
+      archiver(CachedRows)
       ;
-%   { atomic, { archive_this, Channel, Oldest, Newest } } ->
-%     error_logger:info_msg("Archiving: ~s, rows ~p to ~p~n", [ Channel, Oldest, Newest ]),
-%     do_archive(Node, Channel, Oldest, Newest),
-%     archiver(Node, CachedRows)
-%     ;
     { atomic, UpdateList } ->
       lists:foreach(fun({ Channel, _ }) ->
-%       error_logger:info_msg("DEBUG: do_archive(): node:~p channel:~s~n", [ Node, Channel ]),
-        do_archive(Node, Channel, CachedRows, 0)
+        do_archive(Channel, CachedRows, 0)
       end, UpdateList),
-      archiver(Node, CachedRows)
+      archiver(CachedRows)
       ;
     Else ->
       error_logger:info_warning("Error: Archiver error: ~p~n", [ Else ]),
-      archiver(Node, CachedRows)
+      archiver(CachedRows)
   end.
 
 
@@ -446,14 +392,14 @@ archiver(Node, CachedRows) ->
 
 % Start archiving.
 
-do_archive(Node, Channel, CachedRows, N) ->
+do_archive(Channel, CachedRows, N) ->
   Transaction = fun() ->
-    [{ _, _, First }] = mnesia:read({ rows, { first, Channel, Node } }),
-    [{ _, _, Last }] = mnesia:read({ rows, { last, Channel, Node } }),
+    [{ _, _, First }] = mnesia:read({ rows, { first, Channel, node() } }),
+    [{ _, _, Last }] = mnesia:read({ rows, { last, Channel, node() } }),
 
     if
       (Last - First) > CachedRows ->
-        [{ _, _, { Now, User, Text } }] = mnesia:read({ rows, { Node, Channel, First } }),
+        [{ _, _, { Now, User, Text } }] = mnesia:read({ rows, { node(), Channel, First } }),
         { archive_this, First, Now, User, Text }
         ;
       true ->
@@ -467,9 +413,9 @@ do_archive(Node, Channel, CachedRows, N) ->
     { atomic, { archive_this, First, Now, User, Text } } ->
       case write_row_to_file(Channel, Now, User, Text) of
         ok ->
-          remove_archived_row(Node, Channel, First),
+          remove_archived_row(Channel, First),
           timer:sleep(100),
-          do_archive(Node, Channel, CachedRows, N + 1)
+          do_archive(Channel, CachedRows, N + 1)
           ;
         { error, Reason } ->
           error_logger:info_warning("Error: Archiver error - write_row_to_file failed: ~p~n", [ Reason ])
@@ -484,32 +430,6 @@ do_archive(Node, Channel, CachedRows, N) ->
           ok
       end
   end.
-
-
-
-
-% do_archive(Node, Channel, ThisRow, Newest) when ThisRow < Newest ->
-%   Transaction = fun() ->
-%     [{ _, _, { Now, User, Text } }] = mnesia:read({ rows, { Node, Channel, ThisRow } }),
-%     { Now, User, Text }
-%   end,
-%   case mnesia:transaction(Transaction) of
-%     { aborted, Reason } ->
-%       error_logger:info_warning("Error: Archiver error: ~p~n", [ Reason ])
-%       ;
-%     { atomic, { Now, User, Text } } ->
-%       case write_row_to_file(Now, User, Text) of
-%         ok ->
-%           remove_archived_row(Node, Channel, ThisRow),
-%           do_archive(Node, Channel, ThisRow + 1, Newest)
-%           ;
-%         _ ->
-%           error
-%       end
-%   end
-%   ;
-% do_archive(_, _, _, _) ->
-%   ok.
 
 
 
@@ -545,13 +465,13 @@ write_row_to_file(Channel, Now, User, Text) ->
 
 % Remove an archived row from the cache.
 
-remove_archived_row(Node, Channel, ThisRow) ->
+remove_archived_row(Channel, ThisRow) ->
   Transaction = fun() ->
-    [{ _, _, First }] = mnesia:read({ rows, { first, Channel, Node } }),
+    [{ _, _, First }] = mnesia:read({ rows, { first, Channel, node() } }),
     if
       First == ThisRow ->
-        mnesia:delete({ rows, { Node, Channel, ThisRow } }),
-        mnesia:write({ rows, { first, Channel, Node }, ThisRow + 1 })
+        mnesia:delete({ rows, { node(), Channel, ThisRow } }),
+        mnesia:write({ rows, { first, Channel, node() }, ThisRow + 1 })
         ;
       true ->
         mnesia:abort(row_isnt_first)
