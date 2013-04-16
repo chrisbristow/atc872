@@ -236,10 +236,21 @@ get_rows(Channel, LastRow, RowsBack) ->
     [ { _, _, Last } ] ->
       if
         Last > LastRow ->
+          [ { _, _, First } ] = mnesia:read({ rows, { first, Channel, node() } }),
+          Range = if
+            (Last - LastRow) < RowsBack ->
+              lists:seq(Last, LastRow + 1, -1)
+              ;
+            (Last - RowsBack) < First ->
+              lists:seq(Last, First, -1)
+              ;
+            true ->
+              lists:seq(Last, LastRow + 1, -1)
+          end,
           Rows = lists:foldl(fun(E, A) ->
             [ { _, _, R } ] = mnesia:read({ rows, { node(), Channel, E } }),
             [ R ] ++ A
-          end, [], lists:sublist(lists:seq(Last, LastRow + 1, -1), RowsBack)),
+          end, [], Range),
           { Last, Rows }
           ;
         true -> { Last, no_rows }
