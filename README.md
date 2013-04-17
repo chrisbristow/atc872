@@ -2,11 +2,10 @@ ATC872
 ======
 Overview
 --------
-ATC872 allows teams to share information.  It provides a web browser-based, collaborative, live-chat
-and simple blogging service, with keyword searching.  Users contribute and converse within "channels" which
-are specified within the URL used.
+ATC872 is a multi-channel chat server.  Users access ATC872 via a web-browser in order to follow,
+contribute to, and search in conversational channels.
 
-It is build using Erlang (http://www.erlang.org/) and is designed to run across multiple hosts for
+ATC872 is built using Erlang (http://www.erlang.org/) and is designed to run across multiple hosts for
 resilience.  The web server component is implemented using Misultin (https://github.com/ostinelli/misultin).
 It's web-based front end uses MooTools (http://mootools.net/) in order to provide a slick, consistent,
 cross-browser experience.
@@ -34,12 +33,9 @@ Quick Start
    - q().
 
 7) Start ATC872:
-   - erl -sname atc -setcookie atc872 -noshell -pa ostinelli-misultin-59a72fd/ebin -s atc872 start 8686 0 1 250
-
-   - 8686 is the port the web server will listen on.
-   - 0 is the ID of this ATC872 node.
-   - 1 is the number of ATC872 nodes in the cluster.
-   - 250 is the number of records per channel to hold in Mnesia - older records are archived to disk.
+   - erl -sname atc -setcookie atc872 -noshell -pa ostinelli-misultin-59a72fd/ebin -s atc872 start 8686 250
+     - 8686 is the port the web server will listen on.
+     - 250 is the number of records per channel to hold in Mnesia - older records are archived to disk.
 
 8) Point your web browser at the server - URL:
    http://[hostname]:8686/atc872.html?channel=Channel%20One
@@ -48,6 +44,8 @@ Quick Start
 
 Testing the REST interfaces
 ---------------------------
+The following curl commands can be used for testing the various web interfaces available from ATC872:
+
 - curl -d "channel=ch1&user=nank&from=-1&back=200" http://localhost:8686/fetchrows
-- curl -d "channel=The%20Rebooting%20Of%20The%20Things&back=200&pattern=what" http://localhost:8686/searchrows
+- curl -d "channel=The%20Channel&back=200&pattern=what" http://localhost:8686/searchrows
 - curl -d "channel=ch1&user=nank&text=XXXX&from=-1&back=200" http://localhost:8686/addrow
