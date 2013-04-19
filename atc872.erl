@@ -236,39 +236,7 @@ get_rows(Channel, LastRow, RowsBack) ->
     [ { _, _, Last } ] ->
       if
         Last > LastRow ->
-          Rows = get_a_row([], Channel, Last, LastRow, RowsBack),
-
-%         [ { _, _, First } ] = mnesia:read({ rows, { first, Channel, node() } }),
-
-%         error_logger:info_msg("DEBUG: FIRST:~p LAST:~p LASTROW:~p~n", [ First, Last, LastRow ]),
-
-%         Range = if
-%           LastRow == -1, (Last - RowsBack) < First ->
-%             error_logger:info_msg("DEBUG: R1~n"),
-%             lists:seq(Last, First, -1)
-%             ;
-%           LastRow == -1 ->
-%             error_logger:info_msg("DEBUG: R2~n"),
-%             lists:seq(Last, (Last - RowsBack), -1)
-%             ;
-%           (Last - LastRow) < RowsBack ->
-%             error_logger:info_msg("DEBUG: R3~n"),
-%             lists:seq(Last, LastRow + 1, -1)
-%             ;
-%           (Last - RowsBack) < First ->
-%             error_logger:info_msg("DEBUG: R4~n"),
-%             lists:seq(Last, First, -1)
-%             ;
-%           true ->
-%             error_logger:info_msg("DEBUG: R5~n"),
-%             lists:seq(Last, LastRow + 1, -1)
-%         end,
-
-%         Rows = lists:foldl(fun(E, A) ->
-%           [ { _, _, R } ] = mnesia:read({ rows, { node(), Channel, E } }),
-%           [ R ] ++ A
-%         end, [], Range),
-          { Last, Rows }
+          { Last, get_a_row([], Channel, Last, LastRow, RowsBack) }
           ;
         true -> { Last, no_rows }
       end
@@ -279,6 +247,9 @@ get_rows(Channel, LastRow, RowsBack) ->
 
 
 
+% Recursively fetch as many rows as possible, until:
+% - RowsBack is reached, or
+% - The start of the cache is reached.
 
 get_a_row(Result, Channel, CurrentRow, FirstRow, RowsBack) ->
   if
