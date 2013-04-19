@@ -1,7 +1,7 @@
 % atc872.erl
 %
-% Server for the ATC872 low-maintenance online chat forum service.
-
+% Server for the ATC872 online forum service.
+%
 % Copyright (c) 2013, Chris Bristow
 % All rights reserved.
 % 
@@ -236,21 +236,38 @@ get_rows(Channel, LastRow, RowsBack) ->
     [ { _, _, Last } ] ->
       if
         Last > LastRow ->
-          [ { _, _, First } ] = mnesia:read({ rows, { first, Channel, node() } }),
-          Range = if
-            (Last - LastRow) < RowsBack ->
-              lists:seq(Last, LastRow + 1, -1)
-              ;
-            (Last - RowsBack) < First ->
-              lists:seq(Last, First, -1)
-              ;
-            true ->
-              lists:seq(Last, LastRow + 1, -1)
-          end,
-          Rows = lists:foldl(fun(E, A) ->
-            [ { _, _, R } ] = mnesia:read({ rows, { node(), Channel, E } }),
-            [ R ] ++ A
-          end, [], Range),
+          Rows = get_a_row([], Channel, Last, LastRow, RowsBack),
+
+%         [ { _, _, First } ] = mnesia:read({ rows, { first, Channel, node() } }),
+
+%         error_logger:info_msg("DEBUG: FIRST:~p LAST:~p LASTROW:~p~n", [ First, Last, LastRow ]),
+
+%         Range = if
+%           LastRow == -1, (Last - RowsBack) < First ->
+%             error_logger:info_msg("DEBUG: R1~n"),
+%             lists:seq(Last, First, -1)
+%             ;
+%           LastRow == -1 ->
+%             error_logger:info_msg("DEBUG: R2~n"),
+%             lists:seq(Last, (Last - RowsBack), -1)
+%             ;
+%           (Last - LastRow) < RowsBack ->
+%             error_logger:info_msg("DEBUG: R3~n"),
+%             lists:seq(Last, LastRow + 1, -1)
+%             ;
+%           (Last - RowsBack) < First ->
+%             error_logger:info_msg("DEBUG: R4~n"),
+%             lists:seq(Last, First, -1)
+%             ;
+%           true ->
+%             error_logger:info_msg("DEBUG: R5~n"),
+%             lists:seq(Last, LastRow + 1, -1)
+%         end,
+
+%         Rows = lists:foldl(fun(E, A) ->
+%           [ { _, _, R } ] = mnesia:read({ rows, { node(), Channel, E } }),
+%           [ R ] ++ A
+%         end, [], Range),
           { Last, Rows }
           ;
         true -> { Last, no_rows }
@@ -258,6 +275,27 @@ get_rows(Channel, LastRow, RowsBack) ->
       ;
     [] ->
       no_such_channel
+  end.
+
+
+
+
+get_a_row(Result, Channel, CurrentRow, FirstRow, RowsBack) ->
+  if
+    CurrentRow == FirstRow ->
+      Result
+      ;
+    length(Result) >= RowsBack ->
+      Result
+      ;
+    true ->
+      case mnesia:read({ rows, { node(), Channel, CurrentRow } }) of
+        [ { _, _, R } ] ->
+          get_a_row([ R ] ++ Result, Channel, CurrentRow - 1, FirstRow, RowsBack)
+          ;
+        _ ->
+          Result
+      end
   end.
 
 
@@ -309,7 +347,18 @@ search_row(Channel, RowsBack, SearchString, Row, MatchCount, MatchList) ->
 get_search_results(Channel, RowsBack, SearchString) ->
   case mnesia:read({ rows, { last, Channel, node() } }) of
     [ { _, _, Last } ] ->
-      { -1, lists:reverse(search_row(Channel, RowsBack, SearchString, Last, 0, [])) }
+      Results = lists:reverse(search_row(Channel, RowsBack, SearchString, Last, 0, [])),
+
+      if
+        length(Results) < RowsBack ->
+          [ { _, _, Fst } ] = mnesia:read({ rows, { first, Channel, node() } }),
+          [ { _, _, { First, _, _ } } ] = mnesia:read({ rows, { node(), Channel, Fst } }),
+          [ { _, _, { Created, _ } } ] = mnesia:read({ rows, { created, Channel, node() } }),
+          { Results, First, Created }
+          ;
+        true ->
+          Results
+      end
       ;
     [] ->
       no_such_channel
@@ -354,8 +403,14 @@ search_rows(Channel, RowsBack, SearchString) ->
       error_logger:warning_msg("Error: Search rows failed: ~p~n", [Reason]),
       error
       ;
+    { atomic, no_such_channel } ->
+      no_such_channel
+      ;
+    { atomic, { ResultList, First, Created } } ->
+      { -1, search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString) }
+      ;
     { atomic, Rval } ->
-      Rval
+      { -1, Rval }
   end.
 
 
@@ -445,11 +500,19 @@ do_archive(Channel, CachedRows, N) ->
 
 
 
+% Generate an archive file name from a now().
+
+get_archive_file_name(Channel, Now) ->
+  { { Yr, Mo, Dy }, _ } = calendar:now_to_local_time(Now),
+  "archive/" ++ integer_to_list(Yr) ++ pad(integer_to_list(Mo)) ++ pad(integer_to_list(Dy)) ++ "/" ++ Channel.
+
+
+
+
 % Append a row to an archive file.
 
 write_row_to_file(Channel, Now, User, Text) ->
-  { { Yr, Mo, Dy }, _ } = calendar:now_to_local_time(Now),
-  Filename = "archive/" ++ integer_to_list(Yr) ++ pad(integer_to_list(Mo)) ++ pad(integer_to_list(Dy)) ++ "/" ++ Channel,
+  Filename = get_archive_file_name(Channel, Now),
   case filelib:ensure_dir(Filename) of
     ok ->
       case file:open(Filename, [ append ]) of
@@ -495,3 +558,22 @@ remove_archived_row(Channel, ThisRow) ->
     { atomic, _ } ->
       ok
   end.
+
+
+
+% Continue searching through the archived files for a channel.
+
+search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString) when length(ResultList) < RowsBack, First > Created ->
+  ArchiveName = get_archive_file_name(Channel, First),
+  error_logger:info_msg("DEBUG: Search continues in archive: ~p~n", [ ArchiveName ]),
+  { Ms, Sc, Us } = First,
+  NewVal = ((Ms * 1000000000000) + (Sc * 1000000) + Us) - 86400000000,
+  NewMs = NewVal div 1000000000000,
+  NewSc = (NewVal - (NewMs * 1000000000000)) div 1000000,
+  NewUs = NewVal - (NewMs * 1000000000000) - (NewSc * 1000000),
+  NewFst = { NewMs, NewSc, NewUs },
+  search_archive_files(ResultList, NewFst, Created, Channel, RowsBack, SearchString)
+  ;
+search_archive_files(ResultList, First, Created, _, RowsBack, _) ->
+  error_logger:info_msg("DEBUG: Search complete: ~p ~p ~p ~p~n", [ First, Created, length(ResultList), RowsBack ]),
+  ResultList.
