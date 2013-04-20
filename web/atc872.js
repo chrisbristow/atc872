@@ -48,7 +48,6 @@ var flash_interval = 500;
 var flash_ticks = 0;
 var flash_wait = 10000;
 var last_entry = 0;
-// var fade_started = 0;
 
 
 
@@ -138,19 +137,8 @@ function enter_usertext(event)
   if(event.keyCode == 13 && $("usertextinput").value.length > 0 && /\S+/.test($("usertextinput").value))
   {
     var utext = $("usertextinput").value;
-//  var um = utext.match(/##\([A-Za-z0-9 ]+\)##/g);
-
-//  if(um != null)
-//  {
-//    for(var mi = 0; mi < um.length ; mi++)
-//    {
-//      var ulink = um[mi].replace(/##\(/, "").replace(/\)##/, "");
-//      utext = utext.replace(/##\(/, "<a href=\"/atc872.html?channel="+ulink+"\">");
-//      utext = utext.replace(/\)##/, "</a>");
-//    }
-//  }
-
     var ajax=new Request({ url: "addrow", onSuccess: function(responseText, responseXML) { fetched_rows(responseText, false) } });
+
     ajax.post("channel="+channel+"&user="+user+"&text="+encodeURIComponent(utext)+"&from="+latest_row+"&back="+max_extent);
 
     $("usertextinput").value = "";
@@ -326,26 +314,5 @@ function fetched_rows(responseText, is_a_search)
     {
       $("textlist").removeChild($("textlist").lastChild);
     }
-
-//  $("channelname").innerHTML = channel + " " + $("textlist").childNodes.length;
-
-//  if(update_count > 0 && d.getTime() > (fade_started + 1000))
-//  {
-//    fade_started = d.getTime();
-//
-//    for(var j = 0; j < update_count; j++)
-//    {
-//      $("textlist").childNodes[(j * 3) + 1].setStyle('color', '#ffffff');
-//      $("textlist").childNodes[(j * 3) + 1].morph({ 'color': '#ff6666' });
-//      $("textlist").childNodes[(j * 3) + 2].setStyle('color', '#ffffff');
-//      $("textlist").childNodes[(j * 3) + 2].morph({ 'color': '#555599' });
-//    }
-//  }
   }
 }
-
-
-
-//var str="The ##(two)## thing with ##(stuff in)##"; 
-//var n=str.match(/##\([A-Za-z ]+\)##/g);
-//document.getElementById("demo").innerHTML=n[0].replace(/##\(/, "").replace(/\)##/, "");
