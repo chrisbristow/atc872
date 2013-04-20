@@ -284,12 +284,12 @@ search_row(Channel, RowsBack, SearchString, Row, MatchCount, MatchList) ->
     true ->
       case mnesia:read({ rows, { node(), Channel, Row } }) of
         [ { _, _, { Now, User, Text } } ] ->
-          case re:run(User, SearchString, [{ capture, none }, caseless]) of
+          case re:run(Text, SearchString, [{ capture, none }, caseless]) of
             match ->
               search_row(Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
               ;
             _ ->
-              case re:run(Text, SearchString, [{ capture, none }, caseless]) of
+              case re:run(User, SearchString, [{ capture, none }, caseless]) of
                 match ->
                   search_row(Channel, RowsBack, SearchString, Row - 1, MatchCount + 1, MatchList ++ [{ Now, User, Text }])
                   ;
@@ -475,7 +475,7 @@ do_archive(Channel, CachedRows, N) ->
 
 get_archive_file_name(Channel, Now) ->
   { { Yr, Mo, Dy }, _ } = calendar:now_to_local_time(Now),
-  "archive/" ++ integer_to_list(Yr) ++ pad(integer_to_list(Mo)) ++ pad(integer_to_list(Dy)) ++ "/" ++ Channel.
+  "atc872." ++ atom_to_list(node()) ++ "/" ++ integer_to_list(Yr) ++ pad(integer_to_list(Mo)) ++ pad(integer_to_list(Dy)) ++ "/" ++ Channel.
 
 
 
@@ -534,17 +534,93 @@ remove_archived_row(Channel, ThisRow) ->
 
 % Continue searching through the archived files for a channel.
 
-search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString) when length(ResultList) < RowsBack, First > Created ->
-  ArchiveName = get_archive_file_name(Channel, First),
-  error_logger:info_msg("DEBUG: Search continues in archive: ~p~n", [ ArchiveName ]),
-  { Ms, Sc, Us } = First,
-  NewVal = ((Ms * 1000000000000) + (Sc * 1000000) + Us) - 86400000000,
-  NewMs = NewVal div 1000000000000,
-  NewSc = (NewVal - (NewMs * 1000000000000)) div 1000000,
-  NewUs = NewVal - (NewMs * 1000000000000) - (NewSc * 1000000),
-  NewFst = { NewMs, NewSc, NewUs },
-  search_archive_files(ResultList, NewFst, Created, Channel, RowsBack, SearchString)
-  ;
-search_archive_files(ResultList, First, Created, _, RowsBack, _) ->
-  error_logger:info_msg("DEBUG: Search complete: ~p ~p ~p ~p~n", [ First, Created, length(ResultList), RowsBack ]),
-  ResultList.
+search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString) ->
+  if
+    length(ResultList) == RowsBack ->
+%     error_logger:info_msg("DEBUG: Search complete (1): ~p ~p ~p ~p~n", [ First, Created, length(ResultList), RowsBack ]),
+      ResultList
+      ;
+    true ->
+      ArchiveName = get_archive_file_name(Channel, First),
+%     error_logger:info_msg("DEBUG: Search continues in archive: ~p~n", [ ArchiveName ]),
+
+      FileResults = case file:open(ArchiveName, read) of
+        { ok, Iod } ->
+          FileLines = read_a_line(Iod, [], length(ResultList), RowsBack, SearchString),
+          file:close(Iod),
+          lists:reverse(FileLines)
+          ;
+        { error, Reason } ->
+          error_logger:warning_msg("Error: Open of archive ~p failed: ~p~n", [ ArchiveName, Reason ]),
+          []
+      end,
+
+      { Ms, Sc, Us } = First,
+      NewVal = ((Ms * 1000000000000) + (Sc * 1000000) + Us) - 86400000000,
+      NewMs = NewVal div 1000000000000,
+      NewSc = (NewVal - (NewMs * 1000000000000)) div 1000000,
+      NewUs = NewVal - (NewMs * 1000000000000) - (NewSc * 1000000),
+      NewFst = { NewMs, NewSc, NewUs },
+
+      if
+        NewFst < Created ->
+%         error_logger:info_msg("DEBUG: Search complete (2): ~p ~p ~p ~p~n", [ First, Created, length(ResultList), RowsBack ]),
+          FileResults ++ ResultList
+          ;
+        true ->
+          search_archive_files(FileResults ++ ResultList, NewFst, Created, Channel, RowsBack, SearchString)
+      end
+  end.
+
+
+
+% Find a matching line in an archive file.
+
+read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString) ->
+  if
+    PrevLen >= RowsBack ->
+      Acc
+      ;
+    true ->
+      case file:read_line(Iod) of
+        { ok, Data } -> 
+          case erl_scan:string(Data) of
+            { ok,Tokens,_ } ->
+              case erl_parse:parse_term(Tokens) of
+                { ok, { Now, User, Text } } ->
+                  case re:run(Text, SearchString, [{ capture, none }, caseless]) of
+                    match ->
+                      read_a_line(Iod, [{ Now, User, Text }] ++ Acc, PrevLen + 1, RowsBack, SearchString)
+                      ;
+                    _ ->
+                      case re:run(User, SearchString, [{ capture, none }, caseless]) of
+                        match ->
+                          read_a_line(Iod, [{ Now, User, Text }] ++ Acc, PrevLen + 1, RowsBack, SearchString)
+                          ;
+                        _ ->
+                          case re:run(now_to_string(Now), SearchString, [{ capture, none }, caseless]) of
+                            match ->
+                              read_a_line(Iod, [{ Now, User, Text }] ++ Acc, PrevLen + 1, RowsBack, SearchString)
+                              ;
+                            _ ->
+                              read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString)
+                          end
+                      end
+                  end
+                  ;
+                _ ->
+                  read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString)
+              end
+              ;
+            _ ->
+              read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString)
+          end
+          ;
+        eof ->
+          Acc
+          ;
+        { error, Reason } ->
+          error_logger:warning_msg("Error: Read_line failed: ~p~n", [ Reason ]),
+          Acc
+      end
+  end.
