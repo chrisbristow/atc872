@@ -59,7 +59,7 @@ var last_entry = 0;
 
 window.addEvent('domready', function()
 {
-  channel = decodeURIComponent((location.search).replace("?channel=", ""));
+  channel = decodeURIComponent((location.search).replace(/\?channel=/, ""));
   initialise();
 });
 
@@ -137,8 +137,21 @@ function enter_usertext(event)
 {
   if(event.keyCode == 13 && $("usertextinput").value.length > 0 && /\S+/.test($("usertextinput").value))
   {
+    var utext = $("usertextinput").value;
+//  var um = utext.match(/##\([A-Za-z0-9 ]+\)##/g);
+
+//  if(um != null)
+//  {
+//    for(var mi = 0; mi < um.length ; mi++)
+//    {
+//      var ulink = um[mi].replace(/##\(/, "").replace(/\)##/, "");
+//      utext = utext.replace(/##\(/, "<a href=\"/atc872.html?channel="+ulink+"\">");
+//      utext = utext.replace(/\)##/, "</a>");
+//    }
+//  }
+
     var ajax=new Request({ url: "addrow", onSuccess: function(responseText, responseXML) { fetched_rows(responseText, false) } });
-    ajax.post("channel="+channel+"&user="+user+"&text="+encodeURIComponent($("usertextinput").value)+"&from="+latest_row+"&back="+max_extent);
+    ajax.post("channel="+channel+"&user="+user+"&text="+encodeURIComponent(utext)+"&from="+latest_row+"&back="+max_extent);
 
     $("usertextinput").value = "";
     poll_interval = short_poll_interval;
@@ -289,6 +302,18 @@ function fetched_rows(responseText, is_a_search)
       var us = obj.rows[i].user;
       var tx = obj.rows[i].text;
 
+      var um = tx.match(/##\([A-Za-z0-9 ]+\)##/g);
+
+      if(um != null)
+      {
+        for(var mi = 0; mi < um.length ; mi++)
+        {
+          var ulink = um[mi].replace(/##\(/, "").replace(/\)##/, "");
+          tx = tx.replace(/##\(/, "<a href=\"/atc872.html?channel="+ulink+"\">");
+          tx = tx.replace(/\)##/, "</a>");
+        }
+      }
+
       $("textlist").innerHTML = "<br><div class=\"rowdatecss\">"+tm+" "+us+":</div><div class=\"rowtextcss\">"+tx+"</div>" + $("textlist").innerHTML;
 
       if(update_count > -1)
@@ -318,3 +343,9 @@ function fetched_rows(responseText, is_a_search)
 //  }
   }
 }
+
+
+
+//var str="The ##(two)## thing with ##(stuff in)##"; 
+//var n=str.match(/##\([A-Za-z ]+\)##/g);
+//document.getElementById("demo").innerHTML=n[0].replace(/##\(/, "").replace(/\)##/, "");
