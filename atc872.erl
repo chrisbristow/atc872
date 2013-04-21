@@ -378,7 +378,7 @@ search_rows(Channel, RowsBack, SearchString) ->
       no_such_channel
       ;
     { atomic, { ResultList, First, Created } } ->
-      { -1, search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString) }
+      { -1, search_archive_files(ResultList, First, subtract_time(Created, 86400000000), Channel, RowsBack, SearchString) }
       ;
     { atomic, Rval } ->
       { -1, Rval }
@@ -533,10 +533,16 @@ remove_archived_row(Channel, ThisRow) ->
 
 
 % Continue searching through the archived files for a channel.
+% This is a recursive function which steps backwards one archive file at a time
+% until it reaches a point just before the "created" time for a channel.
+% If an archive file doesn't exist for any particular day, then that day
+% is simply skipped.  If an archive file is found for a particular day, then
+% the file is opened and it's file descriptor is passed to the read_a_line()
+% function which recursively searches all lines in that file.
 
 search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString) ->
   if
-    length(ResultList) == RowsBack ->
+    length(ResultList) >= RowsBack ->
 %     error_logger:info_msg("DEBUG: Search complete (1): ~p ~p ~p ~p~n", [ First, Created, length(ResultList), RowsBack ]),
       ResultList
       ;
@@ -550,17 +556,12 @@ search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString
           file:close(Iod),
           lists:reverse(FileLines)
           ;
-        { error, Reason } ->
-          error_logger:warning_msg("Error: Open of archive ~p failed: ~p~n", [ ArchiveName, Reason ]),
+        { error, _Reason } ->
+%         error_logger:warning_msg("Error: Open of archive ~p failed: ~p~n", [ ArchiveName, Reason ]),
           []
       end,
 
-      { Ms, Sc, Us } = First,
-      NewVal = ((Ms * 1000000000000) + (Sc * 1000000) + Us) - 86400000000,
-      NewMs = NewVal div 1000000000000,
-      NewSc = (NewVal - (NewMs * 1000000000000)) div 1000000,
-      NewUs = NewVal - (NewMs * 1000000000000) - (NewSc * 1000000),
-      NewFst = { NewMs, NewSc, NewUs },
+      NewFst = subtract_time(First, 86400000000),
 
       if
         NewFst < Created ->
@@ -574,7 +575,34 @@ search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString
 
 
 
-% Find a matching line in an archive file.
+
+% Subtract a microsecond time from a now(), returning a new now().
+
+subtract_time(Now, UsTime) ->
+  { Ms, Sc, Us } = Now,
+  NewVal = ((Ms * 1000000000000) + (Sc * 1000000) + Us) - UsTime,
+  NewMs = NewVal div 1000000000000,
+  NewSc = (NewVal - (NewMs * 1000000000000)) div 1000000,
+  NewUs = NewVal - (NewMs * 1000000000000) - (NewSc * 1000000),
+  { NewMs, NewSc, NewUs }.
+
+
+
+
+
+% Find a matching line in an archive file.  Like the cache search, row "text"
+% is searched first, if no match then row "user", if no match then row "date".
+% This is a recursive function which checks for matches within
+% a given file.  Matches are added to an accumulator list until either:
+% - The end of the file is reached.
+% - Or, the total number of matches equals "RowsBack".  (Total number of matches
+%   so far, for cache search matches plus file matches is provided in "PrevLen".)
+% - Or, a failure occurs when trying to read from the file descriptor.
+% Known Issue: Files are searched oldest -> newest (as that is the order that
+% they are written).  Whereas the cache is searched newest -> oldest.  This
+% means that if RowsBack is reached whilst searching a file, then it is
+% possible that newer rows within that file will be omitted from the results,
+% yet older ones (up to RowsBack) will be included.
 
 read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString) ->
   if
@@ -585,7 +613,7 @@ read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString) ->
       case file:read_line(Iod) of
         { ok, Data } -> 
           case erl_scan:string(Data) of
-            { ok,Tokens,_ } ->
+            { ok, Tokens, _ } ->
               case erl_parse:parse_term(Tokens) of
                 { ok, { Now, User, Text } } ->
                   case re:run(Text, SearchString, [{ capture, none }, caseless]) of
