@@ -38,9 +38,37 @@ Quick Start
      - 250 is the number of records per channel to hold in Mnesia - older records are archived to disk.
 
 8) Point your web browser at the server - URL:
-   http://[hostname]:8686/atc872.html?channel=Channel%20One
+   http://[hostname]:8686/atc872.html?channel=ChannelOne
 
 9) Chat !!
+
+In order to run a cluster of ATC872 server, step 6, above should be changed to:
+
+On all hosts in the cluster, run:
+
+- erl -sname atc -setcookie atc872
+
+Then, on one node within the cluster, run:
+
+- mnesia:create_schema([-- LIST OF NODES --]).
+
+Eg. "mnesia:create_schema([ 'atc872@host1', atc872@host2' ])."
+
+Then, on all hosts in the cluster, run:
+
+- mnesia:start().
+
+Then, again on one node within the cluster, run:
+
+- mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [-- LIST OF NODES --] }]).
+
+Eg. "mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [ 'atc872@host1', atc872@host2' ] }])."
+
+Finally, exit the Erlang shell on all hosts, and start ATC872 on all hosts, as per step 7:
+
+- erl -sname atc -setcookie atc872 -noshell -pa ostinelli-misultin-59a72fd/ebin -s atc872 start 8686 250
+
+Browsers can be pointed at any instance in the cluster.
 
 Testing the REST interfaces
 ---------------------------
