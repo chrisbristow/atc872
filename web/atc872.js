@@ -232,6 +232,7 @@ function go_to_search()
   $("area51").innerHTML  = "<div class=\"rowdatecss\">Search in \""+channel+"\" for:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"asearch\" onkeyup=\"enter_search(event);\"></div>";
   $("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
+  $("area51").innerHTML += "<div id=\"searchcount\" class=\"rowdatecss\"></div>";
   $("area51").innerHTML += "<div id=\"textlist\"></div>";
   $("asearch").readOnly = false;
 }
@@ -290,18 +291,6 @@ function fetched_rows(responseText, is_a_search)
       var us = obj.rows[i].user;
       var tx = obj.rows[i].text;
 
-//    var um = tx.match(/##\([A-Za-z0-9 ]+\)##/g);
-
-//    if(um != null)
-//    {
-//      for(var mi = 0; mi < um.length ; mi++)
-//      {
-//        var ulink = um[mi].replace(/##\(/, "").replace(/\)##/, "");
-//        tx = tx.replace(/##\(/, "<a href=\"/atc872.html?channel="+ulink+"\">");
-//        tx = tx.replace(/\)##/, "</a>");
-//      }
-//    }
-
       var um = tx.match(/#[A-Za-z0-9]+/g);
 
       if(um != null)
@@ -309,7 +298,7 @@ function fetched_rows(responseText, is_a_search)
         for(var mi = 0; mi < um.length ; mi++)
         {
           var ulink = um[mi].replace(/#/, "").replace(/\s+/, "");
-          tx = tx.replace(/#[A-Za-z0-9]+/, "<a href=\"/atc872.html?channel="+ulink+"\">"+ulink+"</a>");
+          tx = tx.replace(/#[A-Za-z0-9]+/, "<a href=\"/atc872.html?channel="+ulink+"\">#"+ulink+"</a>");
         }
       }
 
