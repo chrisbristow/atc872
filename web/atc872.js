@@ -211,7 +211,8 @@ function init_channel()
   latest_row = -1;
   document.title = channel;
 
-  $("area51").innerHTML  = "<div id=\"channelname\" class=\"channelcss\">"+channel+"</div><br>";
+  $("area51").innerHTML  = "<div id=\"channelname\" class=\"channelcss\">"+channel+"</div>";
+  $("area51").innerHTML += "<div class=\"mhead\"></div><br>";
   $("area51").innerHTML += "<div class=\"rowdatecss\">"+user+" says:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></div>";
   $("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></div>";
