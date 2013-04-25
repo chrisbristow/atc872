@@ -299,7 +299,7 @@ function fetched_rows(responseText, is_a_search)
         for(var mi = 0; mi < um.length ; mi++)
         {
           var ulink = um[mi].replace(/#/, "").replace(/\s+/, "");
-          tx = tx.replace(/#[A-Za-z0-9]+/, "<a href=\"/atc872.html?channel="+ulink+"\">#"+ulink+"</a>");
+          tx = tx.replace(/#[A-Za-z0-9]+/, "<a href=\"/atc872.html?channel="+ulink+"\">"+ulink+"</a>");
         }
       }
 
