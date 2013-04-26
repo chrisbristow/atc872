@@ -213,6 +213,7 @@ function init_channel()
 
   $("area51").innerHTML  = "<div id=\"channelname\" class=\"channelcss\">"+channel+"</div>";
   $("area51").innerHTML += "<div class=\"mhead\"></div><br>";
+  $("area51").innerHTML += "<div class=\"rowdatecss\" id=\"onlineusers\"></div><br>";
   $("area51").innerHTML += "<div class=\"rowdatecss\">"+user+" says:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></div>";
   $("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></div>";
@@ -267,7 +268,11 @@ function fetched_rows(responseText, is_a_search)
     $("rtn_to_channel").setStyle("display", "block");
   }
 
-  if(obj.status == "ok")
+  if(obj.status == "no_rows")
+  {
+    $("onlineusers").innerHTML = "Online: " + obj.users;
+  }
+  else if(obj.status == "ok")
   {
     var d = new Date();
     var update_count = -1;
@@ -285,6 +290,8 @@ function fetched_rows(responseText, is_a_search)
     }
 
     latest_row = obj.latest;
+
+    $("onlineusers").innerHTML = "Online: " + obj.users;
 
     for(var i = 0; i < obj.rows.length; i ++)
     {

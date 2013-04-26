@@ -87,16 +87,19 @@ now_to_string(Now) ->
 
 
 
+
+
 % Takes a list of rows and a Misultin request reference, then renders the
 % rows as a JSON document.
 
 row_renderer(RowData, Req) ->
   case RowData of
-    { LatestRow, no_rows } ->
+    { LatestRow, no_rows, UserList } ->
       Req:ok("{ \"status\": \"no_rows\"," ++
-             "  \"latest\": " ++integer_to_list(LatestRow) ++ "}")
+             "  \"latest\": " ++ integer_to_list(LatestRow) ++ "," ++
+             "  \"users\": \"" ++ UserList ++ "\"}")
       ;
-    { LatestRow, RowList } ->
+    { LatestRow, RowList, UserList } ->
       Rows = lists:foldl(fun({ Now, User, Text }, A) ->
                          Pfx = case length(A) of
                            0 -> "";
@@ -108,8 +111,9 @@ row_renderer(RowData, Req) ->
              "  \"latest\": " ++integer_to_list(LatestRow) ++ "," ++[10]++
              "  \"rows\": [" ++[10]++
              Rows ++[10]++
-             "  ]" ++[10]++
-             "}"
+             "  ]," ++[10]++
+             "  \"users\": \"" ++ UserList ++ "\"" ++[10]++
+             "}" ++[10]
       )
       ;
     no_such_channel ->
@@ -121,6 +125,7 @@ row_renderer(RowData, Req) ->
     Else ->
       error_logger:warning_msg("Warning: Row data returned: ~p~n", [ Else ])
   end.
+
 
 
 
@@ -234,11 +239,23 @@ add_row(Channel, User, Text, LastRow, RowsBack, Now) ->
 get_rows(Channel, LastRow, RowsBack) ->
   case mnesia:read({ rows, { last, Channel, node() } }) of
     [ { _, _, Last } ] ->
+      Before = subtract_time(now(), 30000000),
+      [ { _, _, Ulist } ] = mnesia:read({ rows, { users, Channel } }),
+
+      ListOfUserTuples = lists:filter(fun({ _, Time }) ->
+        if
+          Time < Before -> false;
+          true -> true
+        end
+      end, Ulist),
+
+      ListOfUsers = string:join(lists:map(fun({ User, _ }) -> User end, ListOfUserTuples), ", "),
+
       if
         Last > LastRow ->
-          { Last, get_a_row([], Channel, Last, LastRow, RowsBack) }
+          { Last, get_a_row([], Channel, Last, LastRow, RowsBack), ListOfUsers }
           ;
-        true -> { Last, no_rows }
+        true -> { Last, no_rows, ListOfUsers }
       end
       ;
     [] ->
@@ -342,7 +359,7 @@ get_search_results(Channel, RowsBack, SearchString) ->
 
 fetch_rows(Channel, User, LastRow, RowsBack) ->
   Transaction = fun() ->
-    case mnesia:read({ rows, users }) of
+    case mnesia:read({ rows, { users, Channel } }) of
       [{ _, _, CurrentUserList }] ->
         mnesia:write({ rows, { users, Channel }, lists:keystore(User, 1, CurrentUserList, { User, now() }) })
         ;
@@ -543,12 +560,10 @@ remove_archived_row(Channel, ThisRow) ->
 search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString) ->
   if
     length(ResultList) >= RowsBack ->
-%     error_logger:info_msg("DEBUG: Search complete (1): ~p ~p ~p ~p~n", [ First, Created, length(ResultList), RowsBack ]),
       ResultList
       ;
     true ->
       ArchiveName = get_archive_file_name(Channel, First),
-%     error_logger:info_msg("DEBUG: Search continues in archive: ~p~n", [ ArchiveName ]),
 
       FileResults = case file:open(ArchiveName, read) of
         { ok, Iod } ->
@@ -557,7 +572,6 @@ search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString
           lists:reverse(FileLines)
           ;
         { error, _Reason } ->
-%         error_logger:warning_msg("Error: Open of archive ~p failed: ~p~n", [ ArchiveName, Reason ]),
           []
       end,
 
@@ -565,7 +579,6 @@ search_archive_files(ResultList, First, Created, Channel, RowsBack, SearchString
 
       if
         NewFst < Created ->
-%         error_logger:info_msg("DEBUG: Search complete (2): ~p ~p ~p ~p~n", [ First, Created, length(ResultList), RowsBack ]),
           FileResults ++ ResultList
           ;
         true ->
