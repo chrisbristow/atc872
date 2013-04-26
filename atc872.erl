@@ -395,10 +395,10 @@ search_rows(Channel, RowsBack, SearchString) ->
       no_such_channel
       ;
     { atomic, { ResultList, First, Created } } ->
-      { -1, search_archive_files(ResultList, First, subtract_time(Created, 86400000000), Channel, RowsBack, SearchString) }
+      { -1, search_archive_files(ResultList, First, subtract_time(Created, 86400000000), Channel, RowsBack, SearchString), "" }
       ;
     { atomic, Rval } ->
-      { -1, Rval }
+      { -1, Rval, "" }
   end.
 
 

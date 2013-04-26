@@ -267,12 +267,15 @@ function fetched_rows(responseText, is_a_search)
     $("textlist").innerHTML = "";
     $("rtn_to_channel").setStyle("display", "block");
   }
-
-  if(obj.status == "no_rows")
+  else
   {
-    $("onlineusers").innerHTML = "Online: " + obj.users;
+    if(obj.status == "no_rows" || obj.status == "ok")
+    {
+      $("onlineusers").innerHTML = "Online: " + obj.users;
+    }
   }
-  else if(obj.status == "ok")
+
+  if(obj.status == "ok")
   {
     var d = new Date();
     var update_count = -1;
@@ -290,8 +293,6 @@ function fetched_rows(responseText, is_a_search)
     }
 
     latest_row = obj.latest;
-
-    $("onlineusers").innerHTML = "Online: " + obj.users;
 
     for(var i = 0; i < obj.rows.length; i ++)
     {
