@@ -1,5 +1,7 @@
 % atc872.erl
 %
+% Version: 0.2
+%
 % Server for the ATC872 online forum service.
 %
 % Copyright (c) 2013, Chris Bristow
@@ -422,13 +424,21 @@ archiver(CachedRows) ->
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
-      error_logger:info_warning("Error: Archiver error: ~p~n", [ Reason ]),
+      error_logger:warning_msg("Error: Archiver error: ~p~n", [ Reason ]),
       timer:sleep(10000),
       archiver(CachedRows)
       ;
     { atomic, [] } ->
-      timer:sleep(5000),
-      archiver(CachedRows)
+      case filelib:is_file("atc872.stop") of
+        true ->
+          error_logger:info_msg("Warning: File atc872.stop has been found - closing down~n"),
+          file:delete("atc872.stop"),
+          init:stop()
+          ;
+        _ ->
+          timer:sleep(5000),
+          archiver(CachedRows)
+      end
       ;
     { atomic, UpdateList } ->
       lists:foreach(fun({ Channel, _ }) ->
@@ -437,7 +447,7 @@ archiver(CachedRows) ->
       archiver(CachedRows)
       ;
     Else ->
-      error_logger:info_warning("Error: Archiver error: ~p~n", [ Else ]),
+      error_logger:warning_msg("Error: Archiver error: ~p~n", [ Else ]),
       archiver(CachedRows)
   end.
 
@@ -462,7 +472,7 @@ do_archive(Channel, CachedRows, N) ->
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
-      error_logger:info_warning("Error: Archiver error: ~p~n", [ Reason ])
+      error_logger:warning_msg("Error: Archiver error: ~p~n", [ Reason ])
       ;
     { atomic, { archive_this, First, Now, User, Text } } ->
       case write_row_to_file(Channel, Now, User, Text) of
@@ -472,7 +482,7 @@ do_archive(Channel, CachedRows, N) ->
           do_archive(Channel, CachedRows, N + 1)
           ;
         { error, Reason } ->
-          error_logger:info_warning("Error: Archiver error - write_row_to_file failed: ~p~n", [ Reason ])
+          error_logger:warning_msg("Error: Archiver error - write_row_to_file failed: ~p~n", [ Reason ])
       end
       ;
     { atomic, [] } ->
@@ -541,7 +551,7 @@ remove_archived_row(Channel, ThisRow) ->
   end,
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
-      error_logger:info_warning("Error: Archiver error - remove_archived_row failed: ~p~n", [ Reason ])
+      error_logger:warning_msg("Error: Archiver error - remove_archived_row failed: ~p~n", [ Reason ])
       ;
     { atomic, _ } ->
       ok

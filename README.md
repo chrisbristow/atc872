@@ -70,6 +70,11 @@ Finally, exit the Erlang shell on all hosts, and start ATC872 on all hosts, as p
 
 Browsers can be pointed at any instance in the cluster.
 
+Closing the Server Down
+-----------------------
+The ATC872 server periodically checks for a file called "atc872.stop".  If this file is
+present, the server will delete the file and then perform a clean shutdown.
+
 Testing the REST interfaces
 ---------------------------
 The following curl commands can be used for testing the various web interfaces available from ATC872:
