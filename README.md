@@ -27,9 +27,9 @@ Quick Start
 
 6) Set up Erlang's Mnesia database:
    - erl -sname atc -setcookie atc872
-   - mnesia:create_schema(['-- INSERT ERLANG NODE NAME HERE --']).
+   - mnesia:create_schema([node()]).
    - mnesia:start().
-   - mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, ['-- INSERT ERLANG NODE NAME HERE --'] }]).
+   - mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [node()] }]).
    - q().
 
 7) Start ATC872:
@@ -50,9 +50,9 @@ On all hosts in the cluster, run:
 
 Then, on one node within the cluster, run:
 
-- mnesia:create_schema([-- LIST OF NODES --]).
+- mnesia:create_schema([node(),'OTHER_NODE']).
 
-Eg. "mnesia:create_schema([ 'atc872@host1', atc872@host2' ])."
+Eg. "mnesia:create_schema([ node(), atc872@host2' ])."
 
 Then, on all hosts in the cluster, run:
 
@@ -60,9 +60,9 @@ Then, on all hosts in the cluster, run:
 
 Then, again on one node within the cluster, run:
 
-- mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [-- LIST OF NODES --] }]).
+- mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [node(),'OTHER_NODE'] }]).
 
-Eg. "mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [ 'atc872@host1', atc872@host2' ] }])."
+Eg. "mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [ node(), atc872@host2' ] }])."
 
 Finally, exit the Erlang shell on all hosts, and start ATC872 on all hosts, as per step 7:
 
