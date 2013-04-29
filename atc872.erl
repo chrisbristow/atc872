@@ -242,16 +242,20 @@ get_rows(Channel, LastRow, RowsBack) ->
   case mnesia:read({ rows, { last, Channel, node() } }) of
     [ { _, _, Last } ] ->
       Before = subtract_time(now(), 30000000),
-      [ { _, _, Ulist } ] = mnesia:read({ rows, { users, Channel } }),
 
-      ListOfUserTuples = lists:filter(fun({ _, Time }) ->
-        if
-          Time < Before -> false;
-          true -> true
-        end
-      end, Ulist),
-
-      ListOfUsers = string:join(lists:map(fun({ User, _ }) -> User end, ListOfUserTuples), ", "),
+      ListOfUsers = case mnesia:read({ rows, { users, Channel } }) of
+        [ { _, _, Ulist } ] ->
+          ListOfUserTuples = lists:filter(fun({ _, Time }) ->
+            if
+              Time < Before -> false;
+              true -> true
+            end
+          end, Ulist),
+          string:join(lists:map(fun({ User, _ }) -> User end, ListOfUserTuples), ", ")
+          ;
+        _ ->
+          ""
+      end,
 
       if
         Last > LastRow ->

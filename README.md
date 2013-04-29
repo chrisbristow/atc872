@@ -52,7 +52,7 @@ Then, on one node within the cluster, run:
 
 - mnesia:create_schema([node(),'OTHER_NODE']).
 
-Eg. "mnesia:create_schema([ node(), atc872@host2' ])."
+Eg. "mnesia:create_schema([ node(), 'atc872@host2' ])."
 
 Then, on all hosts in the cluster, run:
 
@@ -62,7 +62,7 @@ Then, again on one node within the cluster, run:
 
 - mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [node(),'OTHER_NODE'] }]).
 
-Eg. "mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [ node(), atc872@host2' ] }])."
+Eg. "mnesia:create_table(rows, [{ attributes, [ id, content ]}, { disc_copies, [ node(), 'atc872@host2' ] }])."
 
 Finally, exit the Erlang shell on all hosts, and start ATC872 on all hosts, as per step 7:
 
