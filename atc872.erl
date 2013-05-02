@@ -1,6 +1,6 @@
 % atc872.erl
 %
-% Version: 0.2
+% Version: 0.3
 %
 % Server for the ATC872 online forum service.
 %
@@ -35,7 +35,7 @@
 
 
 -module(atc872).
--export([start/1, add_row/5, add_row/6, fetch_rows/4, search_rows/3, archiver/1]).
+-export([start/1, add_row/5, add_row/6, fetch_rows/4, search_rows/3, archiver/1, full_archive/1]).
 
 
 
@@ -410,7 +410,10 @@ search_rows(Channel, RowsBack, SearchString) ->
 
 
 
-% Archiver main loop.
+% Archiver main loop.  As well as periodically calling do_archive(), this
+% function also checks to see if the file "atc872.stop" has been created.  If
+% this file is present, then it will be deleted and the server will close itself
+% down cleanly.
 
 archiver(CachedRows) ->
   Transaction = fun() ->
@@ -458,7 +461,7 @@ archiver(CachedRows) ->
 
 
 
-% Start archiving.
+% Start archiving.  Will leave "CachedRows" in Mnesia.
 
 do_archive(Channel, CachedRows, N) ->
   Transaction = fun() ->
@@ -539,7 +542,8 @@ write_row_to_file(Channel, Now, User, Text) ->
 
 
 
-% Remove an archived row from the cache.
+% Remove an archived row from the cache.  Called after a row has been successfully
+% appended to an archive disk file.
 
 remove_archived_row(Channel, ThisRow) ->
   Transaction = fun() ->
@@ -679,3 +683,12 @@ read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString) ->
           Acc
       end
   end.
+
+
+
+% Archive an entire channel to disk.  This is generally called from an
+% external shell to archive channels which are no longer in use.  Their first, last and created
+% records remain in Mnesia meaning that they are still searchable.
+
+full_archive(Channel) ->
+  do_archive(Channel, 0, 0).
