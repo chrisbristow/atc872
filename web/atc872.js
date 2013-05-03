@@ -84,7 +84,9 @@ function initialise()
 
     if(user == null || user.length == 0)
     {
-      $("area51").innerHTML  = "<div class=\"rowdatecss\">Enter your name here:</div>";
+      $("area51").innerHTML  = "<div id=\"channelname\" class=\"channelcss\">"+channel+"</div>";
+      $("area51").innerHTML += "<div class=\"mhead\"></div><br>";
+      $("area51").innerHTML += "<div class=\"rowdatecss\">Enter your name here:</div>";
       $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"auser\" onkeyup=\"enter_userid(event);\"></div>";
     }
     else
@@ -216,7 +218,7 @@ function init_channel()
   $("area51").innerHTML += "<div class=\"rowdatecss\" id=\"onlineusers\"></div><br>";
   $("area51").innerHTML += "<div class=\"rowdatecss\">"+user+" says:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></div>";
-  $("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a> - <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a></div>";
+  $("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a> &nbsp;&nbsp; <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_channels();\">channels</a> &nbsp;&nbsp; <a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a>";
   $("area51").innerHTML += "<div id=\"textlist\"></div>";
 
   do_poll();
@@ -231,12 +233,28 @@ function go_to_search()
 {
   clearTimeout(poll_timer);
 
-  $("area51").innerHTML  = "<div class=\"rowdatecss\">Search in \""+channel+"\" for:</div>";
+  $("area51").innerHTML  = "<div id=\"channelname\" class=\"channelcss\">"+channel+"</div>";
+  $("area51").innerHTML += "<div class=\"mhead\"></div><br>";
+  $("area51").innerHTML += "<div class=\"rowdatecss\">Search in \""+channel+"\" for:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"asearch\" onkeyup=\"enter_search(event);\"></div>";
   $("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
   $("area51").innerHTML += "<div id=\"searchcount\" class=\"rowdatecss\"></div>";
   $("area51").innerHTML += "<div id=\"textlist\"></div>";
   $("asearch").readOnly = false;
+}
+
+
+
+
+// List all channels, most recently updated first.
+
+function go_to_channels()
+{
+  clearTimeout(poll_timer);
+
+  $("area51").innerHTML  = "<div id=\"channelname\" class=\"channelcss\">"+channel+"</div>";
+  $("area51").innerHTML += "<div class=\"mhead\"></div><br>";
+  $("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
 }
 
 

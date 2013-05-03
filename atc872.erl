@@ -1,6 +1,6 @@
 % atc872.erl
 %
-% Version: 0.3
+% Version: 0.4
 %
 % Server for the ATC872 online forum service.
 %
@@ -214,6 +214,7 @@ add_row(Channel, User, Text, LastRow, RowsBack, Now) ->
           mnesia:write({ rows, { created, Channel, I }, { Now, User } }),
           mnesia:write({ rows, { I, Channel, 0 }, { Now, User, Text } })
       end,
+
       case mnesia:read({ rows, { updated, I } }) of
         [ { _, _, UpdateList } ] ->
           mnesia:write({ rows, { updated, I }, lists:keystore(Channel, 1, UpdateList, { Channel, Now }) })
@@ -222,6 +223,15 @@ add_row(Channel, User, Text, LastRow, RowsBack, Now) ->
           mnesia:write({ rows, { updated, I }, lists:keystore(Channel, 1, [], { Channel, Now }) })
       end
     end, mnesia:table_info(rows, disc_copies)),
+
+    case mnesia:read({ rows, channels }) of
+      [ { _, _, UpdateList } ] ->
+        mnesia:write({ rows, channels, lists:keystore(Channel, 1, UpdateList, { Channel, Now, User }) })
+        ;
+      [] ->
+        mnesia:write({ rows, channels, lists:keystore(Channel, 1, [], { Channel, Now, User }) })
+    end,
+
     get_rows(Channel, LastRow, RowsBack)
   end,
   case mnesia:transaction(Transaction) of
@@ -691,4 +701,5 @@ read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString) ->
 % records remain in Mnesia meaning that they are still searchable.
 
 full_archive(Channel) ->
+  add_row(Channel, "Archiver", "This channel has been archived.", -1, 1),
   do_archive(Channel, 0, 0).
