@@ -82,3 +82,4 @@ The following curl commands can be used for testing the various web interfaces a
 - curl -d "channel=ch1&user=nank&from=-1&back=200" http://localhost:8686/fetchrows
 - curl -d "channel=The%20Channel&back=200&pattern=what" http://localhost:8686/searchrows
 - curl -d "channel=ch1&user=nank&text=XXXX&from=-1&back=200" http://localhost:8686/addrow
+- curl -d "" http://localhost:8686/listchannels

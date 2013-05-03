@@ -35,7 +35,7 @@
 
 
 -module(atc872).
--export([start/1, add_row/5, add_row/6, fetch_rows/4, search_rows/3, archiver/1, full_archive/1]).
+-export([ start/1, add_row/5, add_row/6, fetch_rows/4, search_rows/3, archiver/1, full_archive/1, get_channel_list/0, channel_renderer/1 ]).
 
 
 
@@ -130,6 +130,26 @@ row_renderer(RowData, Req) ->
 
 
 
+% Render a JSON object containing a list of all channels.
+
+channel_renderer(Req) ->
+  case get_channel_list() of
+    [] ->
+      Req:ok("{ \"status\": \"no_channels\" }")
+      ;
+    Clist ->
+      Formatted = lists:map(fun({ Channel, Time, User }) ->
+        "{ \"channel\": \"" ++ Channel ++ "\", \"time\": \"" ++ now_to_string(Time) ++ "\", \"user\": \"" ++quote_handler(User) ++ "\" }"
+      end, Clist),
+
+      Channels = string:join(Formatted, ","),
+
+      Req:ok("{ \"status\": \"ok\"," ++ [10] ++
+             "  \"channels\": [" ++[10]++
+             Channels ++[10]++
+             "  ]" ++[10]++
+             "}")
+  end.
 
 
 % Removes un-printable characters from a string.
@@ -175,6 +195,11 @@ handle('POST', ["searchrows"], Req) ->
   RowData = search_rows(Channel, list_to_integer(RowsBack), Pattern),
   row_renderer(RowData, Req),
   log_rt("Search (channel:" ++ Channel ++ " back:" ++ RowsBack ++ " pattern:" ++ Pattern ++ ")", Ctime)
+  ;
+handle('POST', ["listchannels"], Req) ->
+  Ctime = now(),
+  channel_renderer(Req),
+  log_rt("List channels", Ctime)
   ;
 handle('GET', [Static], Req) ->
   Req:file("web/"++Static).
@@ -703,3 +728,29 @@ read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString) ->
 full_archive(Channel) ->
   add_row(Channel, "Archiver", "This channel has been archived.", -1, 1),
   do_archive(Channel, 0, 0).
+
+
+
+% Fetch a sorted list of all channels.
+
+get_channel_list() ->
+  Transaction = fun() ->
+    case mnesia:read({ rows, channels }) of
+      [{ _, _, List }] ->
+        List
+        ;
+      [] ->
+        []
+    end
+  end,
+  case mnesia:transaction(Transaction) of
+    { aborted, Reason } ->
+      error_logger:warning_msg("Error: Channel fetch failed: ~p~n", [ Reason ]),
+      []
+      ;
+    { atomic, [] } ->
+      []
+      ;
+    { atomic, Clist } ->
+      lists:reverse(lists:keysort(2, Clist))
+  end.

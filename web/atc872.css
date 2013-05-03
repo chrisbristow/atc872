@@ -41,6 +41,14 @@ body
   padding-left: 20px;
 }
 
+.rowtdcss
+{
+  font-family: arial,helvetica;
+  font-size: 12pt;
+  letter-spacing: 1px;
+  color: #5555bb;
+}
+
 .maintext
 {
   margin-left: 0px;

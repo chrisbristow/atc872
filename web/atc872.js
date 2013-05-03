@@ -252,9 +252,54 @@ function go_to_channels()
 {
   clearTimeout(poll_timer);
 
+  var ajax=new Request({ url: "listchannels", onSuccess: function(responseText, responseXML) { render_channel_page(responseText) } });
+  ajax.post();
+}
+
+
+
+
+// Render the channel list page.
+
+function render_channel_page(responseText)
+{
+  var obj = JSON.decode(responseText);
+
   $("area51").innerHTML  = "<div id=\"channelname\" class=\"channelcss\">"+channel+"</div>";
   $("area51").innerHTML += "<div class=\"mhead\"></div><br>";
   $("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
+
+  if(obj.status == "no_channels")
+  {
+    $("area51").innerHTML += "<div class=\"rowtextcss\">There are no channels in use</div>";
+  }
+  else if(obj.status == "ok")
+  {
+    var t = "";
+    t += "<table border=\"0\" cellspacing=\"0\" cellpadding=\"10\">";
+    t += "<tr>";
+    t += "<td class=\"rowdatecss\">Channel</td>";
+    t += "<td class=\"rowdatecss\">Last Updated</td>";
+    t += "<td class=\"rowdatecss\">Updated By</td>";
+    t += "</tr>";
+
+    for(var i = 0; i < obj.channels.length; i ++)
+    {
+      t += "<tr>";
+      t += "<td><a href=\"/atc872.html?channel=" + obj.channels[i].channel + "\" class=\"rowtdcss\">" + obj.channels[i].channel + "</a></td>";
+      t += "<td class=\"rowtdcss\">" + obj.channels[i].time + "</td>";
+      t += "<td class=\"rowtdcss\">" + obj.channels[i].user + "</td>";
+      t += "</tr>";
+    }
+
+    t += "</table>";
+
+    $("area51").innerHTML += t;
+  }
+  else
+  {
+    $("area51").innerHTML += "<br>Error: Channel retrieval has failed !!";
+  }
 }
 
 
