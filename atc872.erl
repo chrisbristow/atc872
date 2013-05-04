@@ -1,6 +1,6 @@
 % atc872.erl
 %
-% Version: 0.4
+% Version: 0.41
 %
 % Server for the ATC872 online forum service.
 %
@@ -35,7 +35,7 @@
 
 
 -module(atc872).
--export([ start/1, add_row/5, add_row/6, fetch_rows/4, search_rows/3, archiver/1, full_archive/1, get_channel_list/0, channel_renderer/1 ]).
+-export([ start/1, add_row/5, add_row/6, fetch_rows/4, search_rows/3, archiver/1, full_archive/1, get_channel_list/0, channel_renderer/1, delete_channel/1 ]).
 
 
 
@@ -500,18 +500,24 @@ archiver(CachedRows) ->
 
 do_archive(Channel, CachedRows, N) ->
   Transaction = fun() ->
-    [{ _, _, First }] = mnesia:read({ rows, { first, Channel, node() } }),
-    [{ _, _, Last }] = mnesia:read({ rows, { last, Channel, node() } }),
+    case mnesia:read({ rows, { first, Channel, node() } }) of
+      [{ _, _, First }] ->
+        [{ _, _, Last }] = mnesia:read({ rows, { last, Channel, node() } }),
 
-    if
-      (Last - First) > CachedRows ->
-        [{ _, _, { Now, User, Text } }] = mnesia:read({ rows, { node(), Channel, First } }),
-        { archive_this, First, Now, User, Text }
+        if
+          (Last - First) > CachedRows ->
+            [{ _, _, { Now, User, Text } }] = mnesia:read({ rows, { node(), Channel, First } }),
+            { archive_this, First, Now, User, Text }
+            ;
+          true ->
+            []
+        end
         ;
-      true ->
-        []
+        [] ->
+          []
     end
   end,
+
   case mnesia:transaction(Transaction) of
     { aborted, Reason } ->
       error_logger:warning_msg("Error: Archiver error: ~p~n", [ Reason ])
@@ -728,6 +734,62 @@ read_a_line(Iod, Acc, PrevLen, RowsBack, SearchString) ->
 full_archive(Channel) ->
   add_row(Channel, "Archiver", "This channel has been archived.", -1, 1),
   do_archive(Channel, 0, 0).
+
+
+
+
+% Delete a channel.  To be called from an external shell.  This will
+% remove all traces of a channel in Mnesia from all nodes.  Note - will
+% not remove any archive files from disk.
+
+delete_channel(Channel) ->
+  Transaction = fun() ->
+    lists:foreach(fun(I) ->
+      case mnesia:read({ rows, { last, Channel, I } }) of
+        [ { _, _, L } ] ->
+          [ { _, _, F } ] = mnesia:read({ rows, { first, Channel, I } }),
+
+          lists:foreach(fun(N) ->
+            mnesia:delete({ rows, { I, Channel, N } })
+          end, lists:seq(F, L, 1)),
+
+          mnesia:delete({ rows, { created, Channel, I } }),
+          mnesia:delete({ rows, { first, Channel, I } }),
+          mnesia:delete({ rows, { last, Channel, I } })
+          ;
+        [] ->
+          no_such_channel
+      end,
+
+      case mnesia:read({ rows, { updated, I } }) of
+        [ { _, _, UpdateList } ] ->
+          mnesia:write({ rows, { updated, I }, lists:keydelete(Channel, 1, UpdateList) })
+          ;
+        [] ->
+          ok
+      end
+    end, mnesia:table_info(rows, disc_copies)),
+
+    mnesia:delete({ rows, { users, Channel } }),
+
+    case mnesia:read({ rows, channels }) of
+      [ { _, _, UpdateList } ] ->
+        mnesia:write({ rows, channels, lists:keydelete(Channel, 1, UpdateList) }),
+        ok
+        ;
+      [] ->
+        ok
+    end
+  end,
+
+  case mnesia:transaction(Transaction) of
+    { aborted, Reason } ->
+      error_logger:warning_msg("Error: Delete channel failed: ~p~n", [Reason]),
+      error
+      ;
+    { atomic, Rval } ->
+      Rval
+  end.
 
 
 
