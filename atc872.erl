@@ -513,8 +513,8 @@ do_archive(Channel, CachedRows, N) ->
             []
         end
         ;
-        [] ->
-          []
+      [] ->
+        []
     end
   end,
 
