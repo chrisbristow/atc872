@@ -12,7 +12,7 @@ body
 
 .channelcss
 {
-  font-family: Sansation;
+  font-family: Sansation, arial, helvetica;
   font-size: 12pt;
   font-weight: bold;
   letter-spacing: 3px;
@@ -31,16 +31,15 @@ body
 .rowdatecss
 {
   padding-left: 8px;
-  font-family: Sansation;
+  font-family: Sansation, arial, helvetica;
   font-size: 10pt;
-  font-style: oblique;
   letter-spacing: 1px;
   color: #888888;
 }
 
 .rowtextcss
 {
-  font-family: Sansation;
+  font-family: Sansation, arial, helvetica;
   font-size: 12pt;
   letter-spacing: 1px;
   color: #5555bb;
@@ -49,7 +48,7 @@ body
 
 .rowtdcss
 {
-  font-family: Sansation;
+  font-family: Sansation, arial, helvetica;
   font-size: 12pt;
   letter-spacing: 1px;
   color: #5555bb;
@@ -60,7 +59,7 @@ body
   margin-left: 0px;
   margin-right: 0px;
   width: 100%;
-  font-family: Sansation;
+  font-family: Sansation, arial, helvetica;
   font-size: 10pt;
   letter-spacing: 2px;
   line-height: 200%;
@@ -73,7 +72,7 @@ body
   width: 99%;
   margin-left: 8px;
   margin-right: 8px;
-  font-family: Sansation;
+  font-family: Sansation, arial, helvetica;
   font-size: 10pt;
   letter-spacing: 2px;
   color: #888888;
