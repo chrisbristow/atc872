@@ -33,7 +33,7 @@ body
   padding-left: 8px;
   font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
   font-size: 10pt;
-  letter-spacing: 1px;
+  letter-spacing: 0px;
   color: #888888;
 }
 
@@ -41,7 +41,7 @@ body
 {
   font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
   font-size: 10pt;
-  letter-spacing: 1px;
+  letter-spacing: 0px;
   color: #5555bb;
   padding-left: 20px;
 }
@@ -50,7 +50,7 @@ body
 {
   font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
   font-size: 10pt;
-  letter-spacing: 1px;
+  letter-spacing: 0px;
   color: #5555bb;
 }
 
@@ -61,7 +61,7 @@ body
   width: 100%;
   font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
   font-size: 10pt;
-  letter-spacing: 1px;
+  letter-spacing: 0px;
   line-height: 200%;
   padding: 0px;
   color: #888888;
@@ -74,7 +74,7 @@ body
   margin-right: 8px;
   font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
   font-size: 10pt;
-  letter-spacing: 1px;
+  letter-spacing: 0px;
   color: #888888;
   background-color: #ffffff;
   border: 1px solid #992222;
