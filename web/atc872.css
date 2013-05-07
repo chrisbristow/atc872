@@ -31,7 +31,7 @@ body
 .rowdatecss
 {
   padding-left: 8px;
-  font-family: Sansation, arial, helvetica;
+  font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
   font-size: 10pt;
   letter-spacing: 1px;
   color: #888888;
@@ -39,8 +39,8 @@ body
 
 .rowtextcss
 {
-  font-family: Sansation, arial, helvetica;
-  font-size: 12pt;
+  font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+  font-size: 10pt;
   letter-spacing: 1px;
   color: #5555bb;
   padding-left: 20px;
@@ -48,8 +48,8 @@ body
 
 .rowtdcss
 {
-  font-family: Sansation, arial, helvetica;
-  font-size: 12pt;
+  font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+  font-size: 10pt;
   letter-spacing: 1px;
   color: #5555bb;
 }
@@ -59,9 +59,9 @@ body
   margin-left: 0px;
   margin-right: 0px;
   width: 100%;
-  font-family: Sansation, arial, helvetica;
+  font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
   font-size: 10pt;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   line-height: 200%;
   padding: 0px;
   color: #888888;
@@ -72,9 +72,9 @@ body
   width: 99%;
   margin-left: 8px;
   margin-right: 8px;
-  font-family: Sansation, arial, helvetica;
+  font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
   font-size: 10pt;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   color: #888888;
   background-color: #ffffff;
   border: 1px solid #992222;
