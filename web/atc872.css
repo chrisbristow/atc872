@@ -22,6 +22,24 @@ body
   background-color: #da47aa;
 }
 
+.selector
+{
+  padding-left: 14px;
+  padding-right: 14px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  cursor: pointer;
+  -moz-border-radius: 16px;
+  -webkit-border-radius: 16px;
+  border-radius: 16px;
+  font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+  font-size: 10pt;
+  letter-spacing: 0px;
+  color: #ffffff;
+  background-color: #da47aa;
+  font-weight: bold;
+}
+
 .rowdatecss
 {
   padding-left: 8px;

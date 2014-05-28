@@ -218,7 +218,8 @@ function init_channel()
   $("area51").innerHTML += "<div class=\"rowdatecss\" id=\"onlineusers\"></div><br>";
   $("area51").innerHTML += "<div class=\"rowdatecss\">"+user+" says:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"usertextinput\" onkeyup=\"enter_usertext(event);\"></div>";
-  $("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a> &nbsp;&nbsp; <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_channels();\">channels</a> &nbsp;&nbsp; <a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a>";
+//$("area51").innerHTML += "<div><a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_search();\">search</a> &nbsp;&nbsp; <a class=\"rowdatecss\" href=\"#\" onmouseup=\"go_to_channels();\">channels</a> &nbsp;&nbsp; <a class=\"rowdatecss\" href=\"#\" onmouseup=\"change_user();\">switch user</a>";
+  $("area51").innerHTML += "<br/><div class=\"rowdatecss\"><span class=\"selector\" onmouseup=\"go_to_search();\">search</span> &nbsp;&nbsp; <span class=\"selector\" onmouseup=\"go_to_channels();\">channels</span> &nbsp;&nbsp; <span class=\"selector\" onmouseup=\"change_user();\">switch user</span></div>";
   $("area51").innerHTML += "<div id=\"textlist\"></div>";
 
   do_poll();
@@ -237,7 +238,8 @@ function go_to_search()
   $("area51").innerHTML += "<div class=\"mhead\"></div><br>";
   $("area51").innerHTML += "<div class=\"rowdatecss\">Search in \""+channel+"\" for:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"asearch\" onkeyup=\"enter_search(event);\"></div>";
-  $("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
+//$("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
+  $("area51").innerHTML += "<br/><div class=\"rowdatecss\"><span id=\"rtn_to_channel\" class=\"selector\" onmouseup=\"init_channel();\">return to channel</span></div>";
   $("area51").innerHTML += "<div id=\"searchcount\" class=\"rowdatecss\"></div>";
   $("area51").innerHTML += "<div id=\"textlist\"></div>";
   $("asearch").readOnly = false;
@@ -267,7 +269,8 @@ function render_channel_page(responseText)
 
   $("area51").innerHTML  = "<div id=\"channelname\" class=\"channelcss\">"+channel+"</div>";
   $("area51").innerHTML += "<div class=\"mhead\"></div><br>";
-  $("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
+//$("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
+  $("area51").innerHTML += "<div class=\"rowdatecss\"><span id=\"rtn_to_channel\" class=\"selector\" onmouseup=\"init_channel();\">return to channel</span></div><br/>";
 
   if(obj.status == "no_channels")
   {
@@ -278,9 +281,9 @@ function render_channel_page(responseText)
     var t = "";
     t += "<table border=\"0\" cellspacing=\"0\" cellpadding=\"10\">";
     t += "<tr>";
-    t += "<td class=\"rowdatecss\">Channel</td>";
-    t += "<td class=\"rowdatecss\">Last Updated</td>";
-    t += "<td class=\"rowdatecss\">Updated By</td>";
+    t += "<td class=\"rowdatecss\" style=\"font-weight: bold\">Channel</td>";
+    t += "<td class=\"rowdatecss\" style=\"font-weight: bold\">Last Updated</td>";
+    t += "<td class=\"rowdatecss\" style=\"font-weight: bold\">Updated By</td>";
     t += "</tr>";
 
     for(var i = 0; i < obj.channels.length; i ++)
