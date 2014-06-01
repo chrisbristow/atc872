@@ -239,7 +239,7 @@ function go_to_search()
   $("area51").innerHTML += "<div class=\"rowdatecss\">Search in \""+channel+"\" for:</div>";
   $("area51").innerHTML += "<div><input class=\"usertextinputcss\" type=\"text\" id=\"asearch\" onkeyup=\"enter_search(event);\"></div>";
 //$("area51").innerHTML += "<div><a id=\"rtn_to_channel\" class=\"rowdatecss\" href=\"#\" onmouseup=\"init_channel();\">return to channel</a></div>";
-  $("area51").innerHTML += "<br/><div class=\"rowdatecss\"><span id=\"rtn_to_channel\" class=\"selector\" onmouseup=\"init_channel();\">return to channel</span></div>";
+  $("area51").innerHTML += "<br/><div id=\"rtn_to_channel\" class=\"rowdatecss\"><span class=\"selector\" onmouseup=\"init_channel();\">return to channel</span></div>";
   $("area51").innerHTML += "<div id=\"searchcount\" class=\"rowdatecss\"></div>";
   $("area51").innerHTML += "<div id=\"textlist\"></div>";
   $("asearch").readOnly = false;
